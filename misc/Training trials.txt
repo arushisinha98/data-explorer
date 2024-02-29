@@ -1,0 +1,57 @@
+# TVAE trials
+##############
+
+python main.py \
+	--model=tvae \
+	--data_fn=transformed_train_data.csv \
+	--val_data_fn=validation_data.csv \
+	--discrete_fn="../../Real Data/OVS1618/discrete.txt" \
+	--transformer=transformer.pkl \
+	--use_optuna=True \
+	--trials=120 \
+	--pruner=True \
+	--warmup_steps=150 \
+	--datadir="/home/dsml01/Ultron/Step1/Transformed Data/OVS1618/" \
+	--outputdir="/home/dsml01/Ultron/output/OVS1618/" \
+	--tv_device=cuda:4 \
+	--resume_study="PID29869_20230511_081435"
+
+
+# CTGAN trials
+#############
+python main.py --model=ctgan --data_fn=transformed_train_data.csv --val_data_fn=validation_data.csv --discrete_fn="../Real Data/discrete.txt" --transformer=transformer.pkl --use_optuna=True --datadir="/Users/stb/Documents/Synthetic Data Generation/Ultron/Step1/Transformed Data" --outputdir="/Users/stb/Documents/Synthetic Data Generation/Ultron/output" --trials=1 --pruner=True --warmup_steps=50 --ct_device="cpu"
+OMP_NUM_THREADS=8 MKL_NUM_THREADS=8 python main.py --model=ctgan --data_fn=transformed_train_data.csv --val_data_fn=validation_data.csv --discrete_fn="../Real Data/discrete.txt" --transformer=transformer.pkl --use_optuna=True --datadir="/Users/stb/Documents/Synthetic Data Generation/Ultron/Step1/Transformed Data" --outputdir="/Users/stb/Documents/Synthetic Data Generation/Ultron/output" --trials=1 --pruner=True --warmup_steps=30 --ct_device="cpu"
+
+python main.py
+	--model=ctgan
+	--data_fn=transformed_train_data.csv
+	--val_data_fn=validation_data.csv
+	--discrete_fn="../../Real Data/OVS1618/discrete.txt"
+	--transformer=transformer.pkl
+	--use_optuna=True
+	--trials=100
+	--pruner=True
+	--warmup_steps=150
+	--datadir="/home/dsml01/Ultron/Step1/Transformed Data/OVS1618/"
+	--outputdir="/home/dsml01/Ultron/output/OVS1618/"
+	--ct_device=cuda:x
+	--resume_study="PIDxxxx"
+
+
+python main.py --model=ctgan --data_fn=transformed_train_data.csv --val_data_fn=validation_data.csv --discrete_fn="../../Real Data/OVS1619/discrete.txt" --transformer=transformer.pkl --use_optuna=True --trials=100 --pruner=True --warmup_steps=150 --datadir="/home/dsml01/Ultron/Step1/Transformed Data/OVS1619/" --outputdir="/home/dsml01/Ultron/output/OVS1619/" --ct_device=cuda:0
+
+
+
+#################################################
+
+
+PID16278_20230902_225131 - CTGAN
+PID13890_20230902_224127 - TVAE'
+
+python main.py --model=tvae --data_fn=transformed_train_data.csv --val_data_fn=validation_data.csv --discrete_fn="../../Real Data/OVS1619/discrete.txt" --transformer=transformer.pkl --use_optuna=True --trials=120 --pruner=True --warmup_steps=150 --datadir="/home/dsml01/Ultron/Step1/Transformed Data/OVS1619/" --outputdir="/home/dsml01/Ultron/output/OVS1619/" --tv_device=cuda:2 --resume_study="PID13890_20230902_224127"
+
+python main.py --model=ctgan --data_fn=transformed_train_data.csv --val_data_fn=validation_data.csv --discrete_fn="../../Real Data/OVS1619/discrete.txt" --transformer=transformer.pkl --use_optuna=True --trials=100 --pruner=True --warmup_steps=150 --datadir="/home/dsml01/Ultron/Step1/Transformed Data/OVS1619/" --outputdir="/home/dsml01/Ultron/output/OVS1619/" --ct_device=cuda:1 --resume_study="PID16278_20230902_225131"
+
+
+
+
