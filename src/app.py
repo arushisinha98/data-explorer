@@ -12,4 +12,3 @@ selection_type = st.radio("a. Type of Selection.",
 
 if selection_type == "Continuous":
     YEAR_START, YEAR_END = st.slider("Select a continuous time period", 2016, 2023, (2016, 2016))
-
