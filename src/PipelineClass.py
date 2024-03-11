@@ -9,14 +9,13 @@ class Pipeline():
         assert isinstance(input_df, pd.DataFrame)
         
         try:
-            # set best dtype for columns
-            input_df = input_df.convert_dtypes()
-            # set one index = one row
-            input_df = input_df.reset_index(drop = True)
+            input_df = input_df.convert_dtypes() # set best dtype for columns
+            input_df = input_df.reset_index(drop = True) # set one index = one row
             
             self.data = input_df
             self.metadata = description + "\n"
             self.n_steps = 0
+            self.artifacts = dict()
             
         except Exception as e:
             print("Failed to create Pipeline object.")
@@ -32,17 +31,20 @@ class Pipeline():
         return self.data
     
     
-    def listFunctions(self):
+    def listFunctions(self, print = False):
         '''
         Lists all the transformation functions available in the class object.
+        NOTE: all transformation functions are in PascalCase
         '''
-        class_members = dir(self) # list of all attributes and methods of the class
+        class_members = dir(self) # list all attributes and methods
         functions = [member for member in class_members if callable(getattr(self, member)) and member[0].isupper()]
         
-        # Print the list of functions
-        print("Functions available in the class object:")
-        for function in functions:
-            print("-", function)
+        if print:
+            # print the list of functions
+            print("Functions available in the class object:")
+            for function in functions:
+                print("-", function)
+        return functions
             
     
     def DropColumns(self, column_list):
@@ -59,6 +61,7 @@ class Pipeline():
             self.n_steps += 1
             self.metadata += f"{self.n_steps}. The following columns were dropped:\
             {column_list}\n"
+            self.artifacts[self.n_steps] = {'DropColumns': column_list}
 
         except Exception as e:
             print("Failed to drop specified columns.")
@@ -80,6 +83,7 @@ class Pipeline():
             self.n_steps += 1
             self.metadata += f"{self.n_steps}. The following dictionary was used to recode the names of the columns:\
             {recode_dict}\n"
+            self.artifacts[self.n_steps] = {'RecodeColumnNames': recode_dict}
 
         except Exception as e:
             print("Failed to recode column names.")
@@ -132,6 +136,7 @@ class Pipeline():
             self.n_steps += 1
             self.metadata += f"{self.n_steps}. The following dictionary was used to recode the dtypes of the columns:\
             {recode_dict}\n"
+            self.artifacts[self.n_steps] = {'RecodeColumnTypes': recode_dict}
 
         except Exception as e:
             print("Failed to recode column dtypes.")
@@ -154,6 +159,7 @@ class Pipeline():
             self.n_steps += 1
             self.metadata += f"{self.n_steps}. The following dictionary was used to recode the values of column '{column}':\
             {recode_dict}\n"
+            self.artifacts[self.n_steps] = {'RecodeColumnValues': (column, recode_dict)}
             
         except Exception as e:
             print("Failed to recode column values.")
@@ -177,8 +183,70 @@ class Pipeline():
             self.n_steps += 1
             self.metadata += f"{self.n_steps}. The column '{target_column}' was created and populated with the row-wise sums of the following columns:\
             {column_list}\n"
+            self.artifacts[self.n_steps] = {'SumColumnValues': (column_list, target_column)}
             
         except Exception as e:
             print("Failed to sum column values.")
+            current_dateTime = str(datetime.now())[0:19]
+            print(current_dateTime + ': ' + str(e))
+    
+    """
+    def FilterColumnByStd(self, column, group_by = None, n_std = 3, fill = 'null'):
+        '''
+        FUNCTION to filter out values by standard deviation. By default, does not perform any grouping and replaces all values beyond 3 standard deviations by null.
+        Parameters:
+        - column: Name of column to be filtered
+        - group_by: Name of column or list of columns to group by before applying filter
+        - n_std: Number of standard deviations beyond which to filter
+        - fill: Value or type of value to fill by
+        '''
+        assert fill in ['mean','null'] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean' or 'null'"
+        assert isinstance(group_by, string | list) and all(group_by in list(self.data.columns)), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        
+        try:
+            self.
+            
+        except Exception as e:
+            print("Failed to filter column values.")
+            current_dateTime = str(datetime.now())[0:19]
+            print(current_dateTime + ': ' + str(e))
+    """
+            
+    #def FilterColumnByValue(self, column, bounds, group_by = None, fill = 'null')
+    
+    
+    def exportArtifacts(self, filetype = 'json'):
+        '''
+        FUNCTION to export the artifacts in the transformation pipeline for reproducibility
+        '''
+        return self.artifacts
+    
+    
+    def importArtifacts(self, artifacts):
+        '''
+        FUNCTION to import and apply a transformation pipeline from the 
+        '''
+        assert isinstance(artifacts, dict)
+        
+        try:
+            for n, step in artifacts.items():
+                for method, args in step.items():
+                    if method == "DropColumns":
+                        self.DropColumns(args)
+                    elif method == "RecodeColumnNames":
+                        self.RecodeColumnNames(args)
+                    elif method == "RecodeColumnTypes":
+                        self.RecodeColumnTypes(args)
+                    elif method == "RecodeColumnValues":
+                        self.RecodeColumnValues(args[0], args[1])
+                    elif method == "SumColumnValues":
+                        self.SumColumnValues(args[0], args[1])
+                    #elif method == "FilterColumnValues":
+                    #    self.FilterColumnValues(args[0], args[1], args[2], args[3])
+                    else:
+                        raise Exception(f"{n}. {method} could not be executed. Terminate")
+        
+        except Exception as e:
+            print("Failed to import artifacts.")
             current_dateTime = str(datetime.now())[0:19]
             print(current_dateTime + ': ' + str(e))
