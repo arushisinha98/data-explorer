@@ -3,9 +3,7 @@ import datetime as datetime
 import pandas as pd
 import numpy as np
 import os
-#import openpyxl
 
-#from PipelineClass import Pipeline
 
 file_formats = {'csv': pd.read_csv,
                 'xls': pd.read_excel,
@@ -28,7 +26,6 @@ def load_data(uploaded_file):
 
 
 
-
 if __name__ == "__main__":
 
     st.set_page_config(
@@ -47,4 +44,8 @@ if __name__ == "__main__":
     
     if uploaded_file:
         df = load_data(uploaded_file)
+        
+        # if uploaded data exceed 65K rows
+        # TODO: display "most representative" 65K rows
+        
         st.dataframe(df)
