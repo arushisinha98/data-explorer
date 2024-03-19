@@ -6,10 +6,14 @@ import numpy as np
 from PipelineClass import Pipeline
 
 
-st.title("Tourism Receipts Data Guide")
-st.caption("A data visualization and experimentation tracking aid for TR2.0 Integration.")
+st.set_page_config(
+    page_title = "Start",
+    page_icon = "👋",
+)
 
-st.header("Visualizer")
+st.title("Tourism Receipts Data Guide")
+#st.caption("A data visualization and experimentation tracking aid for TR2.0 Integration.")
+
 # list categorical variables
 
 # list numeric variables
@@ -17,17 +21,17 @@ st.header("Visualizer")
 # show .describe() output
 
 
-st.header("Guided Pre-processing")
-selection_type = st.radio("Select data.", ("2016-2018", "2016-2019", "2019"))
+#st.header("Guided Pre-processing")
+#selection_type = st.radio("Select data.", ("2016-2018", "2016-2019", "2019"))
 
 # retrieve the specified data set
-input_df = pd.DataFrame(np.random.randint(0,100, size = (100, 4)),
-                        columns = list('ABCD'))
+#input_df = pd.DataFrame(np.random.randint(0,100, size = (100, 4)),
+#                        columns = list('ABCD'))
 
 # initialize pipeline
-pipeline = Pipeline(input_df)
-functions = pipeline.listFunctions()
-n = 1
+#pipeline = Pipeline(input_df)
+#functions = pipeline.listFunctions()
+#n = 1
 
 # format dropdown to select transformation step and specify arguments
 def UserGuidedPreprocess(n):
