@@ -1,17 +1,4 @@
-import streamlit as st
-import datetime as datetime
-import pandas as pd
-import numpy as np
-
-from PipelineClass import Pipeline
-
-
-st.set_page_config(
-    page_title = "Start",
-    page_icon = "👋",
-)
-
-st.title("Tourism Receipts Data Guide")
+#st.title("Tourism Receipts Data Guide")
 #st.caption("A data visualization and experimentation tracking aid for TR2.0 Integration.")
 
 # list categorical variables
@@ -34,6 +21,7 @@ st.title("Tourism Receipts Data Guide")
 #n = 1
 
 # format dropdown to select transformation step and specify arguments
+"""
 def UserGuidedPreprocess(n):
     
     # dropdown to select transformation step
@@ -88,7 +76,8 @@ def UserGuidedPreprocess(n):
         st.write(f"{n}. The following dictionary will be used to recode the values of the columns:\
         {recode_dict}"
 
-    
+"""
+
 """
 df = pd.DataFrame(columns = ["Transformation"])
 config = {
@@ -99,6 +88,7 @@ config = {
 result = st.data_editor(df, column_config = config, num_rows = 'dynamic')
 """
 
+"""
 # option to add additional steps
 add = st.button("Add Step")
 if add:
@@ -115,6 +105,8 @@ if export:
     # export pipeline artifacts and save as JSON
     
 """
+
+"""
 st.header("1. Data Selection")
 selection_type = st.radio("a. Type of Selection.",
                           ("**Continuous** to select all data collected during a continuous period.",
@@ -123,3 +115,4 @@ selection_type = st.radio("a. Type of Selection.",
 if selection_type == "Continuous":
     YEAR_START, YEAR_END = st.slider("Select a continuous time period", 2016, 2023, (2016, 2016))
 """
+
