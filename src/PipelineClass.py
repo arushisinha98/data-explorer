@@ -1,6 +1,7 @@
 from datetime import datetime
 import pandas as pd
 from pandas.api.types import CategoricalDtype
+from sklearn.impute import KNNImputer
 
 
 class Pipeline():
@@ -151,10 +152,12 @@ class Pipeline():
         - column: Name of column that is to be recoded.
         - recode_dict: Dictionary specifying the values and their targets.
         '''
+        assert isinstance(column, str)
         assert isinstance(recode_dict, dict)
         
         try:
-            self.RecodeColumnTypes({column: 'categorical'})
+            if self.data[column].dtypes != 'categorical':
+                self.RecodeColumnTypes({column: 'categorical'})
             self.data[column] = self.data[column].map(recode_dict).fillna(self.data[column])
             self.n_steps += 1
             self.metadata += f"{self.n_steps}. The following dictionary was used to recode the values of column '{column}':\
@@ -174,7 +177,9 @@ class Pipeline():
         - column_list: List of columns to be summed
         - target_column: Name of column that is to be populated with the row-wise sums
         '''
+        assert isinstance(column_list, list)
         assert set(column_list) <= set(self.data.columns)
+        assert isinstance(target_column, str)
         assert target_column not in list(self.data.columns), f"The column {target_column} already exists in the dataframe. Choose another name."
         
         try:
@@ -189,6 +194,57 @@ class Pipeline():
             print("Failed to sum column values.")
             current_dateTime = str(datetime.now())[0:19]
             print(current_dateTime + ': ' + str(e))
+            
+    
+    def ImputeWithKNN(self, column, n_neighbors = 5, weights = 'uniform', metric = 'nan_euclidean', add_indicator = True):
+        '''
+        FUNCTION to perform KNN-based imputation for filling in missing values of a column.
+        Parameters:
+        - column: Name of column that is to be imputed
+        - n_neighbors: Number of neighboring samples to use for imputation.
+        - weights: Weight function used in prediction. Possible values:
+            - 'uniform' : uniform weights. All points in each neighborhood are weighted equally.
+            - 'distance' : weight points by the inverse of their distance.
+        - metric: Metric used for the distance computation. Any metric from scikit-learn or scipy.spatial.distance can be used.
+        - add_indicator: If True, adds a missing indicator variable for features with missing values.
+        '''
+        assert isinstance(column, str)
+        assert column in list(self.data.columns), f"The column {column} could not be found in the dataframe."
+        
+        try:
+            imputer = KNNImputer(n_neighbors = n_neighbors,
+                                 weights = weights,
+                                 metric = metric,
+                                 add_indicator = add_indicator)
+            imputed_array = imputer.fit_transform(self.data[column])
+            
+            if add_indicator:
+                # expand dataframe to include extra column with indicator suffix for missing value
+                columns = list(self.data.columns) + [f"{col}_ImputeWithKNN_indicator" for col in self.data.columns if self.data[col].isnull().any()]
+            else:
+                columns = list(self.data.columns)
+            
+            imputed_series = pd.Series(imputed_array[:,0], name = column)
+            self.data[column] = imputed_series
+            neighbors = [columns[i] for i in imputer.nearest_neighbors_.flatten()]
+            
+            self.n_steps += 1
+            self.metadata += f"{self.n_steps}. KNN-based imputation performed on column '{column}' with {n_neighbors} neighbors, weights = '{weights}', and metric = '{metric}'. K-NN columns: {neighbors}\n"
+            self.artifacts[self.n_steps] = {'ImputeWithKNN': {'target_column': target_column, 'n_neighbors': n_neighbors, 'weights': weights, 'metric': metric, 'add_indicator': add_indicator, 'neighbor_columns': neighbor_columns}}
+            
+        except Exception as e:
+            print("Failed to perform KNN-based imputation.")
+            current_dateTime = str(datetime.now())[0:19]
+            print(current_dateTime + ': ' + str(e))
+            
+    
+    # impute with regression
+    # impute with (subgroup) mean
+    
+    # filter by (subgroup) min value
+    # filter by (subgroup) max value
+    # filter by (subgroup) std. dev.
+    
     
     """
     def FilterColumnByStd(self, column, group_by = None, n_std = 3, fill = 'null'):
