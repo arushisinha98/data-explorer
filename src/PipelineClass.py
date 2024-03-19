@@ -156,8 +156,7 @@ class Pipeline():
         assert isinstance(recode_dict, dict)
         
         try:
-            if self.data[column].dtypes != 'categorical':
-                self.RecodeColumnTypes({column: 'categorical'})
+            self.RecodeColumnTypes({column: 'categorical'})
             self.data[column] = self.data[column].map(recode_dict).fillna(self.data[column])
             self.n_steps += 1
             self.metadata += f"{self.n_steps}. The following dictionary was used to recode the values of column '{column}':\
@@ -212,11 +211,12 @@ class Pipeline():
         assert column in list(self.data.columns), f"The column {column} could not be found in the dataframe."
         
         try:
+            self.RecodeColumnTypes({column: 'float'})
             imputer = KNNImputer(n_neighbors = n_neighbors,
                                  weights = weights,
                                  metric = metric,
                                  add_indicator = add_indicator)
-            imputed_array = imputer.fit_transform(self.data[column])
+            imputed_array = imputer.fit_transform(self.data[[column]])
             
             if add_indicator:
                 # expand dataframe to include extra column with indicator suffix for missing value
@@ -224,13 +224,10 @@ class Pipeline():
             else:
                 columns = list(self.data.columns)
             
-            imputed_series = pd.Series(imputed_array[:,0], name = column)
-            self.data[column] = imputed_series
-            neighbors = [columns[i] for i in imputer.nearest_neighbors_.flatten()]
-            
+            self.data[column] = pd.Series(imputed_array[:,0], name = column)
             self.n_steps += 1
-            self.metadata += f"{self.n_steps}. KNN-based imputation performed on column '{column}' with {n_neighbors} neighbors, weights = '{weights}', and metric = '{metric}'. K-NN columns: {neighbors}\n"
-            self.artifacts[self.n_steps] = {'ImputeWithKNN': {'target_column': target_column, 'n_neighbors': n_neighbors, 'weights': weights, 'metric': metric, 'add_indicator': add_indicator, 'neighbor_columns': neighbor_columns}}
+            self.metadata += f"{self.n_steps}. KNN-based imputation performed on column '{column}' with {n_neighbors} neighbors, weights = '{weights}', and metric = '{metric}'.\n"
+            self.artifacts[self.n_steps] = {'ImputeWithKNN': {'column': column, 'n_neighbors': n_neighbors, 'weights': weights, 'metric': metric, 'add_indicator': add_indicator}}
             
         except Exception as e:
             print("Failed to perform KNN-based imputation.")
