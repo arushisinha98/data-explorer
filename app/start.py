@@ -27,6 +27,7 @@ def load_data(uploaded_file):
         return None
 
 
+    
 if __name__ == "__main__":
 
     st.set_page_config(
@@ -35,6 +36,12 @@ if __name__ == "__main__":
     )
     
     st.title("Start")
+    empty_df = pd.DataFrame()
+    
+    if "MASTER DATA" not in st.session_state:
+        st.session_state["MASTER DATA"] = empty_df
+    if "DISPLAY DATA" not in st.session_state:
+        st.session_state["DISPLAY DATA"] = empty_df
     
     uploaded_file = st.file_uploader(
         "Upload Data",
@@ -44,10 +51,16 @@ if __name__ == "__main__":
     
     if uploaded_file:
         df = load_data(uploaded_file)
+        df = df.convert_dtypes()
+        st.session_state["MASTER DATA"] = df
         
         if df.shape[0] > DISPLAY_MAX_N:
-            temp_df = df.sample(n = DISPLAY_MAX_N, replace = False, random_state = 1)
+            st.session_state["DISPLAY DATA"] = df.sample(n = DISPLAY_MAX_N,
+                                                         replace = False, 
+                                                         random_state = 1)
         else:
-            temp_df = df.copy()
+            st.session_state["DISPLAY DATA"] = df
             
-        st.dataframe(temp_df)
+        st.dataframe(st.session_state["DISPLAY DATA"])
+
+    
