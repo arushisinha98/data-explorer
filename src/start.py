@@ -5,6 +5,8 @@ import numpy as np
 import os
 
 
+DISPLAY_MAX_N = 60000
+
 file_formats = {'csv': pd.read_csv,
                 'xls': pd.read_excel,
                 'xlsx': pd.read_excel,
@@ -25,7 +27,6 @@ def load_data(uploaded_file):
         return None
 
 
-
 if __name__ == "__main__":
 
     st.set_page_config(
@@ -35,17 +36,18 @@ if __name__ == "__main__":
     
     st.title("Start")
     
-    
     uploaded_file = st.file_uploader(
         "Upload Data",
         type = list(file_formats.keys()),
-        help = "Excel and CSV file formats and their variations are supported."
+        help = "Most variations of Excel and CSV file formats are supported."
     )
     
     if uploaded_file:
         df = load_data(uploaded_file)
         
-        # if uploaded data exceed 65K rows
-        # TODO: display "most representative" 65K rows
-        
-        st.dataframe(df)
+        if df.shape[0] > DISPLAY_MAX_N:
+            temp_df = df.sample(n = DISPLAY_MAX_N, replace = False, random_state = 1)
+        else:
+            temp_df = df.copy()
+            
+        st.dataframe(temp_df)
