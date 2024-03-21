@@ -1,7 +1,5 @@
 import streamlit as st
 import pandas as pd
-from streamlit.components.v1 import html
-from streamlit_js_eval import streamlit_js_eval
 
 
 def describe_data(master_df, n_categorical = 5):
@@ -50,7 +48,6 @@ if __name__ == "__main__":
     master_df = st.session_state["MASTER DATA"]
     
     n_categorical = st.slider('Categorical Snippet Length', 5, 15, 5)
-    
     describe_df = describe_data(master_df, n_categorical)
     
     st.dataframe(describe_df)
