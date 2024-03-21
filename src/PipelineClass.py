@@ -70,7 +70,7 @@ class Pipeline():
             print(current_dateTime + ': ' + str(e))
 
 
-    def RecodeColumnNames(self, recode_dict):
+    def RenameColumns(self, recode_dict):
         '''
         FUNCTION to recode the names of columns of a pandas dataframe
         Parameters:

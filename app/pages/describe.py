@@ -4,10 +4,7 @@ from streamlit.components.v1 import html
 from streamlit_js_eval import streamlit_js_eval
 
 
-def describe_data(N = 5):
-    
-    master_df = st.session_state["MASTER DATA"]
-    
+def describe_data(master_df, n_categorical = 5):
     data = []
     dtypes = dict(master_df.dtypes)
     
@@ -38,7 +35,6 @@ def describe_data(N = 5):
                                           "Numerical Range",
                                           "Categorical Snippet"],
                                data = data)
-    
     return describe_df
 
 
@@ -51,8 +47,27 @@ if __name__ == "__main__":
     )
 
     st.title("Describe")
+    master_df = st.session_state["MASTER DATA"]
     
-    N_UNIQUE = st.slider('Categorical Snippet Length', 5, 15, 5)
-    describe_df = describe_data(N_UNIQUE)
+    n_categorical = st.slider('Categorical Snippet Length', 5, 15, 5)
+    
+    describe_df = describe_data(master_df, n_categorical)
     
     st.dataframe(describe_df)
+    
+    with st.expander("View Details"):
+        modify = st.checkbox("Filter by Column Value")
+        if modify:
+            dtypes = dict(master_df.dtypes)
+            categoricals = [dtypes[col] for col, dtype in dtypes.items() if dtype == "string[python]" or dtype == "boolean"]
+            filter_column = st.selectbox(categoricals,
+                                         label_visibility = 'collapsed'
+                                         index = None,
+                                         placeholder = "Select a categorical column to filter by ...")
+            if filter_column:
+                filter_value = st.multiselect("↳ Select categories", list(set(master_df[filter_column])))
+                st.dataframe(master_df.loc[df[filter_column].isin(filter_value)].reset_index(drop = True))
+        else:
+            st.dataframe(master_df)
+    
+    

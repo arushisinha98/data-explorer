@@ -51,7 +51,7 @@ if __name__ == "__main__":
     
     if uploaded_file:
         df = load_data(uploaded_file)
-        df = df.convert_dtypes()
+        df = df.convert_dtypes() # convert to columns to best dtypes
         st.session_state["MASTER DATA"] = df
         
         if df.shape[0] > DISPLAY_MAX_N:
@@ -61,6 +61,5 @@ if __name__ == "__main__":
         else:
             st.session_state["DISPLAY DATA"] = df
             
+        
         st.dataframe(st.session_state["DISPLAY DATA"])
-
-    
