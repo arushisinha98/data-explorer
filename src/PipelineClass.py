@@ -235,13 +235,12 @@ class Pipeline():
             print(current_dateTime + ': ' + str(e))
             
     
-    # impute with regression
-    # impute with (subgroup) mean
+    # def ImputeWithRegression(self, column, Xs, coefficients):
+    # def ImputeWithValue(self, column, value, group_by = None):
     
-    # filter by (subgroup) min value
-    # filter by (subgroup) max value
-    # filter by (subgroup) std. dev.
     
+    # def FilterColumnByValue(self, column, value, direction, group_by = None, fill = 'null'):
+    # def FilterColumnByStd(self, column, n_std = 3, group_by = None, fill = 'null'):
     
     """
     def FilterColumnByStd(self, column, group_by = None, n_std = 3, fill = 'null'):
@@ -264,8 +263,6 @@ class Pipeline():
             current_dateTime = str(datetime.now())[0:19]
             print(current_dateTime + ': ' + str(e))
     """
-            
-    #def FilterColumnByValue(self, column, bounds, group_by = None, fill = 'null')
     
     
     def exportArtifacts(self, filetype = 'json'):
@@ -294,8 +291,6 @@ class Pipeline():
                         self.RecodeColumnValues(args[0], args[1])
                     elif method == "SumColumnValues":
                         self.SumColumnValues(args[0], args[1])
-                    #elif method == "FilterColumnValues":
-                    #    self.FilterColumnValues(args[0], args[1], args[2], args[3])
                     else:
                         raise Exception(f"{n}. {method} could not be executed. Terminate")
         
