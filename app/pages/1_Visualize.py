@@ -40,43 +40,74 @@ if __name__ == "__main__":
                               index = None,
                               key = "1D_x_axis")
         
-        # select group_by (must be categorical)
-        group_by = st.multiselect("Select Column(s) to Group By",
-                                  options = [col for col in visualize_df.columns if col not in x_axis])
-        
         if x_axis:
+            # select group_by (must be categorical)
+            group_by = st.multiselect("Select Column(s) to Group By",
+                                      options = [col for col in visualize_df.columns if col not in x_axis],
+                                      key = "1D_group")
+            
             if dtypes[x_axis] == "string[python]" or dtypes[x_axis] == "boolean":
                 st.write("INSERT BAR CHART")
+                if group_by:
+                    st.write("COLOUR BY GROUPS")
+            
             else:
                 st.write("INSERT HISTOGRAM")
+                if group_py:
+                    st.write("COLOUR BY GROUPS")
                 
     with TwoD:
-        # select x-axis (must be numeric)
+        # select x-axis (must be numeric or datetime)
         x_axis = st.selectbox(label = "Select x-axis",
                               options = list(visualize_df.columns),
                               index = None,
                               key = "2D_x_axis")
-                              
-        # select y-axis (must be numeric)
-        y_axis = st.selectbox(label = "Select y-axis",
-                              options = [col for col in visualize_df.columns if col not in x_axis],
-                              index = None,
-                              key = "2D_y_axis")
         
-        # select group_by (must be categorical)
-        group_by = st.multiselect("Select Column(s) to Group By",
-                                  options = [col for col in visualize_df.columns if col not in x_axis and col not in y_axis])
+        if x_axis:
+            # select y-axis (must be numeric)
+            y_axis = st.selectbox(label = "Select y-axis",
+                                  options = [col for col in visualize_df.columns if col not in x_axis],
+                                  index = None,
+                                  key = "2D_y_axis")
         
-        # if x_axis and y_axis:
+            if y_axis:
+                # select group_by (must be categorical)
+                group_by = st.multiselect("Select Column(s) to Group By",
+                                          options = [col for col in visualize_df.columns if col not in x_axis and col not in y_axis],
+                                          key = "2D_group")
+                                  
+                st.write("INSERT SCATTER PLOT")
+                if group_by:
+                    st.write("COLOUR BY GROUPS")
     
     with ThreeD:
-        # select x-axis (must be numeric)
+        # select x-axis (must be numeric or datetime)
+        x_axis = st.selectbox(label = "Select x-axis",
+                              options = list(visualize_df.columns),
+                              index = None,
+                              key = "3D_x_axis")
+                              
+        if x_axis:
+            # select y-axis (must be numeric)
+            y_axis = st.selectbox(label = "Select y-axis",
+                                  options = [col for col in visualize_df.columns if col not in x_axis],
+                                  index = None,
+                                  key = "3D_y_axis")
+            
+            if y_axis:
+                # select z-axis
+                z_axis = st.selectbox(label = "Select z-axis",
+                                      options = [col for col in visualize_df.columns if col not in x_axis],
+                                      index = None,
+                                      key = "3D_z_axis")
         
-        # select y-axis (must be numeric)
+                if z_axis:
+                    # select group_by (must be categorical)
+                    group_by = st.multiselect("Select Column(s) to Group By",
+                                              options = [col for col in visualize_df.columns if col not in x_axis and col not in y_axis],
+                                              key = "3D_group")
         
-        # select z-axis
-        
-        # select group_by (must be categorical)
-        
-        # if x_axis and y_axis and z_axis:
+                    st.write("INSERT BUBBLE CHART")
+                    if group_by:
+                        st.write("COLOUR BY GROUPS")
         

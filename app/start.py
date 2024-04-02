@@ -87,7 +87,7 @@ def recursive_filter(add_filter, df, previous_cols, n):
         if filter_column:
             previous_cols += filter_column
             
-            if col_type == "string[python]" or col_type == "boolean":
+            if col_type == "string[python]" or col_type == "string" or col_type == "boolean":
             
                 # TODO: show bar chart
                 filter_value = st.multiselect("↳ Select categories", list(set(df[filter_column])),
@@ -156,8 +156,8 @@ if __name__ == "__main__":
         describe_df = describe_data(master_df)
         st.dataframe(describe_df, use_container_width = True)
         
-        modify = st.checkbox("Apply Filters")
-        filtered_df = recursive_filter(modify, master_df, [], n = 0)
+        filter = st.checkbox("Apply Filters")
+        filtered_df = recursive_filter(filter, master_df, [], n = 0)
         
         if filtered_df is not None:
             st.dataframe(sample_data(filtered_df))
