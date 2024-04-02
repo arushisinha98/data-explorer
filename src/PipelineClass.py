@@ -4,6 +4,9 @@ from pandas.api.types import CategoricalDtype
 from sklearn.impute import KNNImputer
 
 
+valid_dtypes = ['char','string','int','float','bool','categorical','datetime']
+
+
 class Pipeline():
 
     def __init__(self, input_df, description = ""):
@@ -17,6 +20,7 @@ class Pipeline():
             self.metadata = description + "\n"
             self.n_steps = 0
             self.artifacts = dict()
+            self.functions = listFunctions(print = False)
             
         except Exception as e:
             print("Failed to create Pipeline object.")
@@ -111,8 +115,7 @@ class Pipeline():
         '''
         assert isinstance(recode_dict, dict)
         assert set(recode_dict.keys()) <= set(self.data.columns), "The recode dictionary contains columns that are not present in the original dataframe."
-        valid_dtypes = {'char', 'string', 'int', 'float', 'bool', 'categorical', 'date', 'datetime'}
-        assert set(recode_dict.values()) <= valid_dtypes,\
+        assert set(recode_dict.values()) <= set(valid_dtypes),\
         f"You may only recode column into the following types: {valid_dtypes}"
         
         try:
@@ -130,7 +133,7 @@ class Pipeline():
                     df[column] = df[column].astype(bool)
                 elif dtype == 'categorical':
                     df[column] = df[column].astype('category')
-                elif dtype == 'date' or dtype == 'datetime':
+                elif dtype == 'datetime':
                     df[column] = pd.to_datetime(df[column], errors = 'coerce')
             
             self.data = df
@@ -235,34 +238,170 @@ class Pipeline():
             print(current_dateTime + ': ' + str(e))
             
     
-    # def ImputeWithRegression(self, column, Xs, coefficients):
-    # def ImputeWithValue(self, column, value, group_by = None):
-    
-    
-    # def FilterColumnByValue(self, column, value, direction, group_by = None, fill = 'null'):
-    # def FilterColumnByStd(self, column, n_std = 3, group_by = None, fill = 'null'):
-    
-    """
-    def FilterColumnByStd(self, column, group_by = None, n_std = 3, fill = 'null'):
+    def ImputeWithRegression(self, column, Xs, coefficients):
         '''
-        FUNCTION to filter out values by standard deviation. By default, does not perform any grouping and replaces all values beyond 3 standard deviations by null.
+        FUNCTION to impute missing values in a column using regression equation based on values of other columns.
+        Parameters:
+        - column: Name of column that is to be imputed
+        - Xs: List of columns (dependent variables) used for regression equation
+        - coefficients: List of coefficients used for regression equation
+        '''
+        assert isinstance(Xs, list) and isinstance(coefficients, list) and len(Xs) == len(coefficients), "Require both Xs and coefficients to be lists of equal length."
+        assert all(Xs in list(self.data.columns)), "Require all independent variable columns to exist in the dataframe."
+        # TODO: apply to numeric columns using numeric columns only
+        
+        try:
+            missing_values = self.data[self.data[column].isnull()]
+            predicted_values = (missing_values[Xs] * coefficients).sum(axis = 1)
+            self.data.loc[missing_values.index, column] = predicted_values
+
+            self.n_steps += 1
+            self.metadata += f"{self.n_steps}. Imputed missing values in column '{column}' using regression equation based on columns {Xs}, with coefficients {coefficients}\n"
+            self.artifacts[self.n_steps] = {'ImputeWithRegression': {'column': column, 'Xs': Xs, 'coefficients': coefficients}}
+        
+        except Exception as e:
+            print("Failed to perform regression-based imputation.")
+            current_dateTime = str(datetime.now())[0:19]
+            print(current_dateTime + ': ' + str(e))
+        
+    
+    def ImputeWithValue(self, column, value, group_by = None):
+        '''
+        FUNCTION to impute missing values in a column using user-specified value.
+        Parameters:
+        - column: Name of column that is to be imputed
+        - value: Value to impute by
+        - group_by: Name of column or list of columns to group by before performing imputation
+        '''
+        assert isinstance(group_by, string | list) and all(group_by in list(self.data.columns)), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        
+        try:
+            if group_by:
+                if isinstance(group_by, str):
+                    group_by = [group_by]
+                self.data[column] = self.data.groupby(group_by)[column].transform(lambda x: x.fillna(value))
+            else:
+                self.data[column] = self.data[column].fillna(value)
+
+            self.n_steps += 1
+            self.metadata += f"{self.n_steps}. Imputed missing values in column '{column}' with '{value}'" + (f", grouped by {group_by}" if group_by else "") + "\n"
+            self.artifacts[self.n_steps] = {'ImputeWithValue': {'column': column, 'value': value, 'group_by': group_by}}
+
+        
+        except Exception as e:
+            print("Failed to perform imputation.")
+            current_dateTime = str(datetime.now())[0:19]
+            print(current_dateTime + ': ' + str(e))
+    
+    
+    def FilterColumnByValue(self, column, bound, direction, group_by = None, fill = ''):
+        '''
+        FUNCTION to filter column by value.
+        Parameters:
+        - column: Name of column to be filtered
+        - bound: Value beyond which to filter
+        - direction: The direction of the filter to be applied (> bound, < bound, >= bound, <= bound)
+        - group_by: Name of column or list of columns to group by before applying filter
+        - fill: Value or type of value to fill by
+        '''
+        assert fill in ['mean','median',''] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median' or ''"
+        assert isinstance(group_by, string | list) and all(group_by in list(self.data.columns)), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        assert direction in ['>', '<', '>=', '<='], "Direction should be one of '>', '<', '>=', '<='"
+        # TODO: apply to numeric columns only
+        
+        try:
+            self.RecodeColumnTypes({column: 'float'})
+            # group by columns (if any)
+            if isinstance(group_by, str):
+                group_by = [group_by]
+            if group_by:
+                grouped = self.data.groupby(group_by)
+            else:
+                grouped = [(None, self.data)]
+
+            # iterate over groups and determine fill value
+            for group_name, group_df in grouped:
+                if fill == 'mean':
+                    fill_value = group_df[column].mean()
+                elif fill == 'median':
+                    fill_value = group_df[column].median()
+                else:
+                    fill_value = fill
+
+                # apply filter based on direction
+                if direction == '>':
+                    outliers = group_df[group_df[column] > bound].index
+                elif direction == '<':
+                    outliers = group_df[group_df[column] < bound].index
+                elif direction == '>=':
+                    outliers = group_df[group_df[column] >= bound].index
+                elif direction == '<=':
+                    outliers = group_df[group_df[column] <= bound].index
+
+                # fill outliers with specified fill value
+                self.data.loc[outliers, column] = fill_value
+
+            self.n_steps += 1
+            self.metadata += f"{self.n_steps}. Filtered column '{column}' by value {direction} {bound}{' grouped by ' + ', '.join(group_by) if group_by else ''}, filled with '{fill}'\n"
+            self.artifacts[self.n_steps] = {'FilterColumnByValue': {'column': column, 'bound': bound, 'direction': direction, 'group_by': group_by, 'fill': fill}}
+        
+        except Exception as e:
+            print("Failed to filter column values.")
+            current_dateTime = str(datetime.now())[0:19]
+            print(current_dateTime + ': ' + str(e))
+    
+    
+    def FilterColumnByStd(self, column, group_by = None, n_std = 3, fill = ''):
+        '''
+        FUNCTION to filter column by standard deviations. By default, does not perform any grouping and replaces all values beyond 3 standard deviations by ''.
         Parameters:
         - column: Name of column to be filtered
         - group_by: Name of column or list of columns to group by before applying filter
         - n_std: Number of standard deviations beyond which to filter
         - fill: Value or type of value to fill by
         '''
-        assert fill in ['mean','null'] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean' or 'null'"
+        assert fill in ['mean','median',''] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median' or ''"
         assert isinstance(group_by, string | list) and all(group_by in list(self.data.columns)), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        # TODO: apply to numeric columns only
         
         try:
-            self.
+            self.RecodeColumnTypes({column: 'float'})
+            # group by columns (if any)
+            if isinstance(group_by, str):
+                group_by = [group_by]
+            if group_by:
+                grouped = self.data.groupby(group_by)
+            else:
+                grouped = [(None, self.data)]
+
+            # iterate over groups and determine fill value
+            for group_name, group_df in grouped:
+                if fill == 'mean':
+                    fill_value = group_df[column].mean()
+                elif fill == 'median':
+                    fill_value = group_df[column].median()
+                else:
+                    fill_value = fill
+
+                # calculate mean and standard deviation
+                mean_val = group_df[column].mean()
+                std_val = group_df[column].std()
+
+                # find values beyond n_std standard deviations
+                outliers = group_df[(group_df[column] > mean_val + n_std * std_val) | (group_df[column] < mean_val - n_std * std_val)].index
+
+                # fill outliers with specified fill value
+                self.data.loc[outliers, column] = fill_value
+
+            self.n_steps += 1
+            self.metadata += f"{self.n_steps}. Filtered column '{column}' by {n_std} standard deviations{' grouped by ' + ', '.join(group_by) if group_by else ''}, filled with '{fill}'\n"
+            self.artifacts[self.n_steps] = {'FilterColumnByStd': {'column': column, 'group_by': group_by, 'n_std': n_std, 'fill': fill}}
             
         except Exception as e:
             print("Failed to filter column values.")
             current_dateTime = str(datetime.now())[0:19]
             print(current_dateTime + ': ' + str(e))
-    """
+    
     
     
     def exportArtifacts(self, filetype = 'json'):
@@ -283,14 +422,24 @@ class Pipeline():
                 for method, args in step.items():
                     if method == "DropColumns":
                         self.DropColumns(args)
-                    elif method == "RecodeColumnNames":
-                        self.RecodeColumnNames(args)
+                    elif method == "RenameColumns":
+                        self.RenameColumns(args)
                     elif method == "RecodeColumnTypes":
                         self.RecodeColumnTypes(args)
                     elif method == "RecodeColumnValues":
                         self.RecodeColumnValues(args[0], args[1])
                     elif method == "SumColumnValues":
                         self.SumColumnValues(args[0], args[1])
+                    elif method == "ImputeWithKNN":
+                        self.ImputeWithKNN(args[0], args[1], args[2], args[3], args[4])
+                    elif method == "ImputeWithRegression":
+                        self.ImputeWithRegression(args[0], args[1], args[2])
+                    elif method == "ImputeWithValue":
+                        self.ImputeWithValue(args[0], args[1], args[2])
+                    elif method == "FilterColumnByValue":
+                        self.FilterColumnByValue(args[0], args[1], args[2], args[3], args[4])
+                    elif method == "FilterColumnByStd":
+                        self.FilterColumnByStd(args[0], args[1], args[2], args[3])
                     else:
                         raise Exception(f"{n}. {method} could not be executed. Terminate")
         
