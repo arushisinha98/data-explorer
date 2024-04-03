@@ -119,6 +119,7 @@ class Pipeline():
         f"You may only recode column into the following types: {valid_dtypes}"
         
         try:
+            # TODO: retain NaN/missing values in dtype conversion
             df = self.data
             for column, dtype in recode_dict.items():
                 if dtype == 'char':
@@ -271,9 +272,9 @@ class Pipeline():
         Parameters:
         - column: Name of column that is to be imputed
         - value: Value to impute by
-        - group_by: Name of column or list of columns to group by before performing imputation
+        - group_by: List of column(s) to group by before performing imputation
         '''
-        assert isinstance(group_by, string | list) and all(group_by in list(self.data.columns)), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
         
         try:
             if group_by:
@@ -294,18 +295,18 @@ class Pipeline():
             print(current_dateTime + ': ' + str(e))
     
     
-    def FilterColumnByValue(self, column, bound, direction, group_by = None, fill = ''):
+    def FilterColumnByValue(self, column, bound, direction, group_by = None, fill = 'NA'):
         '''
         FUNCTION to filter column by value.
         Parameters:
         - column: Name of column to be filtered
         - bound: Value beyond which to filter
         - direction: The direction of the filter to be applied (> bound, < bound, >= bound, <= bound)
-        - group_by: Name of column or list of columns to group by before applying filter
+        - group_by: List of column(s) to group by before applying filter
         - fill: Value or type of value to fill by
         '''
-        assert fill in ['mean','median',''] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median' or ''"
-        assert isinstance(group_by, string | list) and all(group_by in list(self.data.columns)), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        assert fill in ['mean','median','NA'] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median' or 'NA'"
+        assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
         assert direction in ['>', '<', '>=', '<='], "Direction should be one of '>', '<', '>=', '<='"
         # TODO: apply to numeric columns only
         
@@ -351,17 +352,18 @@ class Pipeline():
             print(current_dateTime + ': ' + str(e))
     
     
-    def FilterColumnByStd(self, column, group_by = None, n_std = 3, fill = ''):
+    def FilterColumnByStd(self, column, group_by = None, n_std = 3, fill = 'NA'):
         '''
         FUNCTION to filter column by standard deviations. By default, does not perform any grouping and replaces all values beyond 3 standard deviations by ''.
         Parameters:
         - column: Name of column to be filtered
-        - group_by: Name of column or list of columns to group by before applying filter
+        - group_by: List of column(s) to group by before applying filter
         - n_std: Number of standard deviations beyond which to filter
         - fill: Value or type of value to fill by
         '''
-        assert fill in ['mean','median',''] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median' or ''"
-        assert isinstance(group_by, string | list) and all(group_by in list(self.data.columns)), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        assert fill in ['mean','median','NA'] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median' or 'NA'"
+        assert group_by
+        assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
         # TODO: apply to numeric columns only
         
         try:

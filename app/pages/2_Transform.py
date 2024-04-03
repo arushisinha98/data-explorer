@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 #from streamlit.components.v1 import html
 #from streamlit_js_eval import streamlit_js_eval
 import random
@@ -31,10 +32,53 @@ def recursive_transform(add_step, pipeline, n):
             if drop_cols:
                 pipeline.DropColumns(drop_cols)
                 
+        elif step_n == "FilterColumnByStd":
+            # select column; multiselect group_by; select params
+            col = st.selectbox("↳ Select column",
+                               [col for col in pipeline.data.columns if dtypes[col] == "Float64"],
+                               key = f"{n}-FilterColumnByStd-Column")
+            group_by = st.multiselect("↳ (Optional) Select column(s) to group by",
+                                      [col for col in pipeline.data.columns if dtypes[col] != "Float64"],
+                                      key = f"{n}-FilterColumnByStd-GroupBy")
+            n_std = st.slider("↳ Select `N` standard deviations",
+                              1, 5, 3,
+                              key = f"{n}-FilterColumnByStd-n")
+            fill = st.text_input("↳ Input fill value",
+                                 placeholder = "Can be a numeric value, or 'mean', 'median', or 'NA'",
+                                 key = f"{n}-FilterColumnByStd-Fill")
+            
+            if col and n_std and fill:
+                pipeline.FilterColumnByStd(col, group_by, n_std, fill)
+                
+        elif step_n == "FilterColumnByValue":
+            # select column; multiselect group_by; select params
+            col = st.selectbox("↳ Select column",
+                               [col for col in pipeline.data.columns if dtypes[col] == "Float64" or dtypes[col] == "Int64" or dtypes[col] == "boolean"],
+                               key = f"{n}-FilterColumnByValue-Column")
+            group_by = st.multiselect("↳ (Optional) Select column(s) to group by",
+                                      [col for col in pipeline.data.columns if dtypes[col] != "Float64"],
+                                      key = f"{n}-FilterColumnByValue-GroupBy")
+            display1, display2 = st.columns([1,5])
+            direction = display1.selectbox("↳ Specify filter",
+                                           [">","<",">=","<="],
+                                           key = f"{n}-FilterColumnByValue-direction")
+            bound = display2.text_input("",
+                                      key = f"{n}-FilterColumnByValue-bound")
+            fill = st.text_input("↳ Input fill value",
+                                 placeholder = "Can be a numeric value, or 'mean', 'median', or 'NA'",
+                                 key = f"{n}-FilterColumnByValue-Fill")
+            
+            min_b, max_b = min(pipeline.data[col]), max(pipeline.data[col])
+            if col and direction and bound:
+                if bound > max_b or bound < min_b:
+                    st.write("Filter value is beyond the minimum/maximum bounds of the column.")
+                else:
+                    pipeline.FilterColumnByValue(col, bound, dir, group_by, fill)
+            
         elif step_n == "ImputeWithKNN":
             # select column and KNN params
             col = st.selectbox("↳ Select column",
-                               [col for col in pipeline.data.columns if dtypes[col] == "Float64" or dtypes[col] == "Float32"],
+                               [col for col in pipeline.data.columns if dtypes[col] == "Float64"],
                                key = f"{n}-ImputeWithKNN-Column")
             # TODO: suggest best N?
             n = st.slider("↳ Select `N` neighboring samples",
@@ -70,7 +114,7 @@ def recursive_transform(add_step, pipeline, n):
                                            key = f"{n}-RecodeColumnValues")
             apply = st.toggle("Apply", key = f"{n}-Recode")
             if apply:
-                df = recode_editor.drop(["Original Value"], axis = 1)
+                df = recode_editor.set_index("Original Value")
                 st.write(df["New Value"].to_dict())
         
         #elif step_n == "RenameColumns":
@@ -80,7 +124,7 @@ def recursive_transform(add_step, pipeline, n):
         
         add_step = st.checkbox("Add Another Transformation",
                                key = f"add_step_{n}")
-                               
+        
         return recursive_transform(add_step, pipeline, n)
 
 
@@ -95,21 +139,21 @@ if __name__ == "__main__":
     if "FILTERED DATA" not in st.session_state:
         st.session_state["FILTERED DATA"] = pd.DataFrame()
     
-    data_subset = st.radio(label = "Select subset of data to be visualized.",
+    data_subset = st.radio(label = "Select subset of data to be transformed.",
                            options = ("All Data", "Filtered Data"))
     
     if data_subset == "All Data":
-        visualize_df = st.session_state["MASTER DATA"]
+        transform_df = st.session_state["MASTER DATA"]
     else:
-        visualize_df = st.session_state["FILTERED DATA"]
+        transform_df = st.session_state["FILTERED DATA"]
     
-    st.write(f"Shape of selected data: {visualize_df.shape[0]} rows, {visualize_df.shape[1]} columns")
+    st.write(f"Shape of selected data: {transform_df.shape[0]} rows, {transform_df.shape[1]} columns")
+    
+    pipeline = Pipeline(input_df = transform_df)
     
     with st.expander("View Data"):
-        st.dataframe(visualize_df)
-        
-    pipeline = Pipeline(input_df = visualize_df)
+        st.dataframe(transform_df)
     
-    if visualize_df.shape[0] > 0:
+    if transform_df.shape[0] > 0:
         transform = st.checkbox("Apply Transformation")
         steps = recursive_transform(transform, pipeline, n = 0)
