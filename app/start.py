@@ -37,7 +37,7 @@ def describe_data(master_df):
         row.append(dtypes[col])
         row.append(np.round(master_df[col].isnull().mean()*100,2))
         
-        if dtypes[col] == "string[python]":
+        if dtypes[col] == "string[python]" or dtypes[col] == "string":
             values = list(set(master_df[col].dropna()))
             show_values = ', '.join(values[:EXAMPLE_CATEGORIES])
             show_ellipse = [', ...' if len(values) > EXAMPLE_CATEGORIES else '']
@@ -47,7 +47,7 @@ def describe_data(master_df):
             row.append("TRUE (1) or FALSE (0)")
             
         else:
-            row.append(f"{min(master_df[col].dropna())} to {max(master_df[col].dropna())}")
+            row.append(f"{min(master_df[col].dropna())} to {np.nanmax(master_df[col].dropna())}")
             
         data.append(row)
             
@@ -142,13 +142,14 @@ if __name__ == "__main__":
         st.session_state["FILTERED DATA"] = pd.DataFrame()
     
     uploaded_file = st.file_uploader(
-        "Upload Data",
+        "(Required) Upload Data",
         type = list(file_formats.keys()),
         help = "Most variations of Excel and CSV file formats are supported."
     )
     
     if uploaded_file:
         df = load_data(uploaded_file)
+        df = df.dropna(how = 'all', axis = 1) # drop empty columns
         df = df.convert_dtypes() # set best dtypes
         st.session_state["MASTER DATA"] = df
         
@@ -165,3 +166,20 @@ if __name__ == "__main__":
             if sample_data(filtered_df).shape[0] < filtered_df.shape[0]:
                 st.write("*Unable to show all rows*")
             st.session_state["FILTERED DATA"] = filtered_df
+        
+    st.write("")
+    st.write("**Do you have the artifacts of an existing transformation pipeline?**\
+    Pipeline artifacts will allow you to apply a pre-defined series of transformations on the above dataset.")
+    uploaded_artifacts = st.file_uploader(
+        "(Optional) Upload Pipeline Artifacts",
+        type = 'json',
+        help = "Only JSON files that were previously created on and downloaded from this platform will be accepted."
+    )
+    
+    #if uploaded_artifacts:
+        # check if artifacts are valid
+        
+        # create mermaid diagram of pipeline
+        
+        # apply or confirm button
+    

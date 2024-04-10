@@ -248,7 +248,7 @@ class Pipeline():
         - coefficients: List of coefficients used for regression equation
         '''
         assert isinstance(Xs, list) and isinstance(coefficients, list) and len(Xs) == len(coefficients), "Require both Xs and coefficients to be lists of equal length."
-        assert all(Xs in list(self.data.columns)), "Require all independent variable columns to exist in the dataframe."
+        assert all(X in list(self.data.columns) for X in Xs), "Require all independent variable columns to exist in the dataframe."
         # TODO: apply to numeric columns using numeric columns only
         
         try:
@@ -274,7 +274,8 @@ class Pipeline():
         - value: Value to impute by
         - group_by: List of column(s) to group by before performing imputation
         '''
-        assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        if group_by:
+            assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
         
         try:
             if group_by:
@@ -306,7 +307,8 @@ class Pipeline():
         - fill: Value or type of value to fill by
         '''
         assert fill in ['mean','median','NA'] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median' or 'NA'"
-        assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        if group_by:
+            assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
         assert direction in ['>', '<', '>=', '<='], "Direction should be one of '>', '<', '>=', '<='"
         # TODO: apply to numeric columns only
         
@@ -362,8 +364,8 @@ class Pipeline():
         - fill: Value or type of value to fill by
         '''
         assert fill in ['mean','median','NA'] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median' or 'NA'"
-        assert group_by
-        assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        if group_by:
+            assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
         # TODO: apply to numeric columns only
         
         try:
