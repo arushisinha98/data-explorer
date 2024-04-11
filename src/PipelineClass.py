@@ -1,5 +1,6 @@
 from datetime import datetime
 import pandas as pd
+import numpy as np
 from pandas.api.types import CategoricalDtype
 from sklearn.impute import KNNImputer
 
@@ -8,7 +9,9 @@ valid_dtypes = ['char','string','int','float','bool','categorical','datetime']
 
 
 class Pipeline():
-
+    '''
+    The Pipeline object contains member functions that perform transformations on a data set. These functions can be sequentially called to create a pre-processing pipeline. The relevant metadata and artifacts required to reproduce the pipeline are also stored within the Pipeline object.
+    '''
     def __init__(self, input_df, description = ""):
         assert isinstance(input_df, pd.DataFrame)
         
@@ -33,6 +36,9 @@ class Pipeline():
     
     
     def getData(self):
+        '''
+        Returns data as at latest state in transformation pipeline.
+        '''
         return self.data
     
     
@@ -72,6 +78,28 @@ class Pipeline():
             print("Failed to drop specified columns.")
             current_dateTime = str(datetime.now())[0:19]
             print(current_dateTime + ': ' + str(e))
+    
+    
+    def DropRows(self, column_list):
+        '''
+        FUNCTION to drop the rows of a pandas dataframe based on presence of missing values in the specified columns.
+        Parameters:
+        - column_list: List of columns that must be filled and valid for a row to be retained.
+        '''
+        assert isinstance(column_list, list)
+        assert set(column_list) <= set(self.data.columns), "The list of columns contains columns that are not present in the original dataframe."
+        
+        try:
+            self.data = self.data.dropna(subset = column_list)
+            self.n_steps += 1
+            self.metadata += f"{self.n_steps}. Rows were dropped based on the presence of missing values in the following columns:\
+            {column_list}\n"
+            self.artifacts[self.n_steps] = {'DropRows': column_list}
+        
+        except Exception as e:
+            print("Failed to drop rows based on mandatory columns.")
+            current_dateTime = str(datetime.now())[0:19]
+            print(current_dateTime + ': ' + str(e))
 
 
     def RenameColumns(self, recode_dict):
@@ -86,7 +114,7 @@ class Pipeline():
         try:
             self.data = self.data.rename(columns = recode_dict)
             self.n_steps += 1
-            self.metadata += f"{self.n_steps}. The following dictionary was used to recode the names of the columns:\
+            self.metadata += f"{self.n_steps}. The following dictionary was used to rename the columns:\
             {recode_dict}\n"
             self.artifacts[self.n_steps] = {'RecodeColumnNames': recode_dict}
 
@@ -98,7 +126,7 @@ class Pipeline():
             
     def getColumnTypes(self):
         '''
-        FUNCTION to get the data type of each column
+        Outputs a dictionary specifying the data type of each column
         Returns:
         - type_dict: Dictionary specifying columns and their dtypes.
         '''
@@ -110,7 +138,7 @@ class Pipeline():
         FUNCTION to recode the data type of columns of a pandas dataframe
         Parameters:
         - recode_dict: Dictionary specifying the columns and their target dtypes. 
-                       The dtypes can be 'char', 'string', 'int', 'float', 'bool', 
+                       The dtypes can be 'char', 'string', 'int', 'float', 'bool',
                        'categorical', 'date', or 'datetime'.
         '''
         assert isinstance(recode_dict, dict)
@@ -119,24 +147,38 @@ class Pipeline():
         f"You may only recode column into the following types: {valid_dtypes}"
         
         try:
-            # TODO: retain NaN/missing values in dtype conversion
             df = self.data
             for column, dtype in recode_dict.items():
+                # keeps NaN intact except in conversion to bool, which replaces missing cells with False if there is no natural distinction between True and False that can be found in original values
                 if dtype == 'char':
-                    df[column] = df[column].astype(str).str.slice(0, 1)
+                    df[column] = np.where(pd.isna(df[column]),
+                                          df[column],
+                                          df[column].astype(str).str.slice(0, 1))
                 elif dtype == 'string':
-                    df[column] = df[column].astype('string')
+                    df[column] = np.where(pd.isna(df[column]),
+                                          df[column],
+                                          df[column].astype('string'))
                 elif dtype == 'int':
-                    df[column] = pd.to_numeric(df[column], downcast = 'integer', errors = 'coerce')
+                    df[column] = np.where(pd.isna(df[column]),
+                                          df[column],
+                                          pd.to_numeric(df[column], downcast = 'integer', errors = 'coerce'))
                 elif dtype == 'float':
-                    df[column] = df[column].astype(float)
+                    df[column] = np.where(pd.isna(df[column]),
+                                          df[column],
+                                          df[column].astype(float))
                 elif dtype == 'bool':
-                    df[column] = df[column].astype(bool)
+                    try:
+                        df[column] = df[column].astype('boolean')
+                    finally:
+                        continue
                 elif dtype == 'categorical':
-                    df[column] = df[column].astype('category')
+                    df[column] = np.where(pd.isna(df[column]),
+                                          df[column],
+                                          df[column].astype('category'))
                 elif dtype == 'datetime':
-                    df[column] = pd.to_datetime(df[column], errors = 'coerce')
-            
+                    df[column] = np.where(pd.isna(df[column]),
+                                          df[column],
+                                          pd.to_datetime(df[column], errors = 'coerce'))
             self.data = df
             self.n_steps += 1
             self.metadata += f"{self.n_steps}. The following dictionary was used to recode the dtypes of the columns:\
@@ -148,6 +190,132 @@ class Pipeline():
             current_dateTime = str(datetime.now())[0:19]
             print(current_dateTime + ': ' + str(e))
     
+    
+    def ReplaceByValue(self, column, bound, direction, group_by = None, fill = 'NA'):
+        '''
+        FUNCTION to replace cells in a column based on their original value.
+        Parameters:
+        - column: Name of column to be affected by replacement
+        - bound: Values to replace
+        - direction: The direction where replacement is to be applied (> bound, < bound, >= bound, <= bound, == bound, != bound)
+        - group_by: List of column(s) to group by before applying replacement
+        - fill: Value or type of value to fill by
+        '''
+        if isinstance(fill, str):
+            assert fill in ['mean','median','NA'], "For numeric columns, require fill value to be numeric (int or float) or 'mean', 'median', or 'NA'"
+        else:
+            assert isinstance(fill, int | float), "For numeric columns, require fill value to be numeric (int or float) or 'mean', 'median', or 'NA'"
+        if group_by:
+            assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        assert direction in ['>', '<', '>=', '<=', '==', '!='], "Direction should be one of '>', '<', '>=', '<=', '==', '!='"
+        
+        try:
+            self.RecodeColumnTypes({column: 'float'})
+            # group by columns (if any)
+            if isinstance(group_by, str):
+                group_by = [group_by]
+            if group_by:
+                grouped = self.data.groupby(group_by)
+            else:
+                grouped = [(None, self.data)]
+
+            # iterate over groups and determine fill value
+            for group_name, group_df in grouped:
+                if fill == 'mean':
+                    fill_value = group_df[column].mean()
+                elif fill == 'median':
+                    fill_value = group_df[column].median()
+                elif fill == 'NA':
+                    fill_value = np.nan
+
+                # apply filter based on direction
+                if direction == '>':
+                    outliers = group_df[group_df[column] > bound].index
+                elif direction == '<':
+                    outliers = group_df[group_df[column] < bound].index
+                elif direction == '>=':
+                    outliers = group_df[group_df[column] >= bound].index
+                elif direction == '<=':
+                    outliers = group_df[group_df[column] <= bound].index
+                elif direction == '==':
+                    outliers = group_df[group_df[column] == bound].index
+                elif direction == '!=':
+                    outliers = group_df[group_df[column] != bound].index
+
+                # fill outliers with specified fill value
+                self.data.loc[outliers, column] = fill_value
+
+            self.n_steps += 1
+            self.metadata += f"{self.n_steps}. Replaced cells in column '{column}' where original value was {direction} {bound} by {fill}{', grouped by ' + ', '.join(group_by) if group_by else ''}'\n"
+            self.artifacts[self.n_steps] = {'ReplaceByValue': {'column': column, 'bound': bound, 'direction': direction, 'group_by': group_by, 'fill': fill}}
+        
+        except Exception as e:
+            print("Failed to replace column values.")
+            current_dateTime = str(datetime.now())[0:19]
+            print(current_dateTime + ': ' + str(e))
+            
+    
+    def ReplaceByStd(self, column, group_by = None, n_std = 3, direction = '<>', fill = 'NA'):
+        '''
+        FUNCTION to replace cells in a column if beyond specified standard deviations from mean. By default, does not perform any grouping and replaces all values beyond 3 standard deviations in both directions by 'NA'.
+        Parameters:
+        - column: Name of column to be affected by replacement
+        - group_by: List of column(s) to group by before applying replacement
+        - n_std: Number of standard deviations beyond which to replace values
+        - direction: The direction where replacement is to be applied (>, < or both)
+        - fill: Value or type of value to fill by
+        '''
+        assert fill in ['mean','median','NA'] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median', or 'NA'"
+        if group_by:
+            assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
+        assert direction in ['>', '<', '<>'], "Direction should be one of '>', '<', '<>'"
+        
+        try:
+            self.RecodeColumnTypes({column: 'float'})
+            # group by columns (if any)
+            if isinstance(group_by, str):
+                group_by = [group_by]
+            if group_by:
+                grouped = self.data.groupby(group_by)
+            else:
+                grouped = [(None, self.data)]
+
+            # iterate over groups and determine fill value
+            for group_name, group_df in grouped:
+                if fill == 'mean':
+                    fill_value = group_df[column].mean()
+                elif fill == 'median':
+                    fill_value = group_df[column].median()
+                else:
+                    fill_value = fill
+
+                # calculate mean and standard deviation
+                mean_val = group_df[column].mean()
+                std_val = group_df[column].std()
+                
+                # find values beyond n_std standard deviations
+                if direction == '<>':
+                    outliers = group_df[(group_df[column] > mean_val + n_std * std_val) | (group_df[column] < mean_val - n_std * std_val)].index
+                elif direction == '>':
+                    outliers = group_df[(group_df[column] > mean_val + n_std * std_val)].index
+                elif direction == '<':
+                    outliers = group_df[(group_df[column] < mean_val + n_std * std_val)].index
+                
+                # fill outliers with specified fill value
+                self.data.loc[outliers, column] = fill_value
+
+            self.n_steps += 1
+            self.metadata += f"{self.n_steps}. Replaced cells in column '{column}' where original value was {direction}{n_std} standard deviations of the {'group ' if group_by else ''}mean by {fill}{', grouped by ' + ', '.join(group_by) if group_by else ''}'\n"
+            self.artifacts[self.n_steps] = {'ReplaceByStd': {'column': column, 'group_by': group_by, 'n_std': n_std, 'direction': direction, 'fill': fill}}
+            
+        except Exception as e:
+            print("Failed to filter column values.")
+            current_dateTime = str(datetime.now())[0:19]
+            print(current_dateTime + ': ' + str(e))
+            
+            
+    #def ExtractYear(self, column)
+            
     
     def RecodeColumnValues(self, column, recode_dict):
         '''
@@ -239,9 +407,9 @@ class Pipeline():
             print(current_dateTime + ': ' + str(e))
             
     
-    def ImputeWithRegression(self, column, Xs, coefficients):
+    def ImputeWithEquation(self, column, Xs, coefficients):
         '''
-        FUNCTION to impute missing values in a column using regression equation based on values of other columns.
+        FUNCTION to impute missing values in a column based on user-specified custom equation using other columns as dependent variables.
         Parameters:
         - column: Name of column that is to be imputed
         - Xs: List of columns (dependent variables) used for regression equation
@@ -258,7 +426,7 @@ class Pipeline():
 
             self.n_steps += 1
             self.metadata += f"{self.n_steps}. Imputed missing values in column '{column}' using regression equation based on columns {Xs}, with coefficients {coefficients}\n"
-            self.artifacts[self.n_steps] = {'ImputeWithRegression': {'column': column, 'Xs': Xs, 'coefficients': coefficients}}
+            self.artifacts[self.n_steps] = {'ImputeWithEquation': {'column': column, 'Xs': Xs, 'coefficients': coefficients}}
         
         except Exception as e:
             print("Failed to perform regression-based imputation.")
@@ -296,128 +464,16 @@ class Pipeline():
             print(current_dateTime + ': ' + str(e))
     
     
-    def FilterColumnByValue(self, column, bound, direction, group_by = None, fill = 'NA'):
-        '''
-        FUNCTION to filter column by value.
-        Parameters:
-        - column: Name of column to be filtered
-        - bound: Value beyond which to filter
-        - direction: The direction of the filter to be applied (> bound, < bound, >= bound, <= bound)
-        - group_by: List of column(s) to group by before applying filter
-        - fill: Value or type of value to fill by
-        '''
-        assert fill in ['mean','median','NA'] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median' or 'NA'"
-        if group_by:
-            assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
-        assert direction in ['>', '<', '>=', '<='], "Direction should be one of '>', '<', '>=', '<='"
-        # TODO: apply to numeric columns only
-        
-        try:
-            self.RecodeColumnTypes({column: 'float'})
-            # group by columns (if any)
-            if isinstance(group_by, str):
-                group_by = [group_by]
-            if group_by:
-                grouped = self.data.groupby(group_by)
-            else:
-                grouped = [(None, self.data)]
-
-            # iterate over groups and determine fill value
-            for group_name, group_df in grouped:
-                if fill == 'mean':
-                    fill_value = group_df[column].mean()
-                elif fill == 'median':
-                    fill_value = group_df[column].median()
-                else:
-                    fill_value = fill
-
-                # apply filter based on direction
-                if direction == '>':
-                    outliers = group_df[group_df[column] > bound].index
-                elif direction == '<':
-                    outliers = group_df[group_df[column] < bound].index
-                elif direction == '>=':
-                    outliers = group_df[group_df[column] >= bound].index
-                elif direction == '<=':
-                    outliers = group_df[group_df[column] <= bound].index
-
-                # fill outliers with specified fill value
-                self.data.loc[outliers, column] = fill_value
-
-            self.n_steps += 1
-            self.metadata += f"{self.n_steps}. Filtered column '{column}' by value {direction} {bound}{' grouped by ' + ', '.join(group_by) if group_by else ''}, filled with '{fill}'\n"
-            self.artifacts[self.n_steps] = {'FilterColumnByValue': {'column': column, 'bound': bound, 'direction': direction, 'group_by': group_by, 'fill': fill}}
-        
-        except Exception as e:
-            print("Failed to filter column values.")
-            current_dateTime = str(datetime.now())[0:19]
-            print(current_dateTime + ': ' + str(e))
-    
-    
-    def FilterColumnByStd(self, column, group_by = None, n_std = 3, fill = 'NA'):
-        '''
-        FUNCTION to filter column by standard deviations. By default, does not perform any grouping and replaces all values beyond 3 standard deviations by ''.
-        Parameters:
-        - column: Name of column to be filtered
-        - group_by: List of column(s) to group by before applying filter
-        - n_std: Number of standard deviations beyond which to filter
-        - fill: Value or type of value to fill by
-        '''
-        assert fill in ['mean','median','NA'] or isinstance(fill, int | float), "Require fill value to be numeric (int or float) or 'mean', 'median' or 'NA'"
-        if group_by:
-            assert isinstance(group_by, list) and all(col in list(self.data.columns) for col in group_by), "Require all column(s) to group by to exist in the dataframe and to be specified in a list."
-        # TODO: apply to numeric columns only
-        
-        try:
-            self.RecodeColumnTypes({column: 'float'})
-            # group by columns (if any)
-            if isinstance(group_by, str):
-                group_by = [group_by]
-            if group_by:
-                grouped = self.data.groupby(group_by)
-            else:
-                grouped = [(None, self.data)]
-
-            # iterate over groups and determine fill value
-            for group_name, group_df in grouped:
-                if fill == 'mean':
-                    fill_value = group_df[column].mean()
-                elif fill == 'median':
-                    fill_value = group_df[column].median()
-                else:
-                    fill_value = fill
-
-                # calculate mean and standard deviation
-                mean_val = group_df[column].mean()
-                std_val = group_df[column].std()
-
-                # find values beyond n_std standard deviations
-                outliers = group_df[(group_df[column] > mean_val + n_std * std_val) | (group_df[column] < mean_val - n_std * std_val)].index
-
-                # fill outliers with specified fill value
-                self.data.loc[outliers, column] = fill_value
-
-            self.n_steps += 1
-            self.metadata += f"{self.n_steps}. Filtered column '{column}' by {n_std} standard deviations{' grouped by ' + ', '.join(group_by) if group_by else ''}, filled with '{fill}'\n"
-            self.artifacts[self.n_steps] = {'FilterColumnByStd': {'column': column, 'group_by': group_by, 'n_std': n_std, 'fill': fill}}
-            
-        except Exception as e:
-            print("Failed to filter column values.")
-            current_dateTime = str(datetime.now())[0:19]
-            print(current_dateTime + ': ' + str(e))
-    
-    
-    
     def exportArtifacts(self, filetype = 'json'):
         '''
-        FUNCTION to export the artifacts in the transformation pipeline for reproducibility
+        Exports the artifacts in the transformation pipeline for reproducibility.
         '''
         return self.artifacts
     
     
     def importArtifacts(self, artifacts):
         '''
-        FUNCTION to import and apply a transformation pipeline from the 
+        Imports the artifacts of a transformation pipeline and applies to data.
         '''
         assert isinstance(artifacts, dict)
         
@@ -436,13 +492,13 @@ class Pipeline():
                         self.SumColumnValues(args[0], args[1])
                     elif method == "ImputeWithKNN":
                         self.ImputeWithKNN(args[0], args[1], args[2], args[3], args[4])
-                    elif method == "ImputeWithRegression":
-                        self.ImputeWithRegression(args[0], args[1], args[2])
+                    elif method == "ImputeWithEquation":
+                        self.ImputeWithEquation(args[0], args[1], args[2])
                     elif method == "ImputeWithValue":
                         self.ImputeWithValue(args[0], args[1], args[2])
-                    elif method == "FilterColumnByValue":
+                    elif method == "ReplaceByValue":
                         self.FilterColumnByValue(args[0], args[1], args[2], args[3], args[4])
-                    elif method == "FilterColumnByStd":
+                    elif method == "ReplaceByStd":
                         self.FilterColumnByStd(args[0], args[1], args[2], args[3])
                     else:
                         raise Exception(f"{n}. {method} could not be executed. Terminate")

@@ -4,6 +4,10 @@ import pandas as pd
 import numpy as np
 import os
 
+import sys
+sys.path.append('../src/')
+from visualizations import PlotStrip, PlotDensity
+
 
 DISPLAY_MAX_N = 50000
 EXAMPLE_CATEGORIES = 3
@@ -88,18 +92,14 @@ def recursive_filter(add_filter, df, previous_cols, n):
             previous_cols += filter_column
             
             if col_type == "string[python]" or col_type == "string" or col_type == "boolean":
-            
-                # TODO: show bar chart
+                
                 filter_value = st.multiselect("↳ Select categories", list(set(df[filter_column])),
                                               key = f"filter_value_{n}")
                 filtered_df = df.loc[df[filter_column].isin(filter_value)].reset_index(drop = True)
                 
             else:
-            
-                # TODO: show distribution with labelled IQR
                 min_value, max_value = min(df[filter_column].dropna()), max(df[filter_column].dropna())
                 
-                # TODO: add manual entry option for slider values
                 if col_type == "Int64" or col_type == "Int32":
                     filter_value = st.slider("↳ Select range of values",
                                              int(min_value), int(max_value),
@@ -107,6 +107,9 @@ def recursive_filter(add_filter, df, previous_cols, n):
                                              key = f"filter_value_{n}")
                                              
                 elif col_type == "datetime64[ns]":
+                    chart = PlotStrip(df, filter_column, group_by = None, width = 600, height = 60)
+                    st.altair_chart(chart, use_container_width = True)
+                    
                     df[filter_column] = pd.to_datetime(df[filter_column])
                     min_value, max_value = min(df[filter_column].dropna()).to_pydatetime(), max(df[filter_column].dropna()).to_pydatetime()
                     filter_value = st.slider("↳ Select range of values",
@@ -115,6 +118,9 @@ def recursive_filter(add_filter, df, previous_cols, n):
                                              value = (min_value, max_value))
                 
                 else:
+                    chart = PlotStrip(df, filter_column, group_by = None, width = 600, height = 60)
+                    st.altair_chart(chart, use_container_width = True)
+                    
                     filter_value = st.slider("↳ Select range of values",
                                              np.floor(min_value), np.ceil(max_value),
                                              value = (min_value, max_value))
@@ -146,17 +152,19 @@ if __name__ == "__main__":
         type = list(file_formats.keys()),
         help = "Most variations of Excel and CSV file formats are supported."
     )
-    
+    # upload data widget
     if uploaded_file:
         df = load_data(uploaded_file)
         df = df.dropna(how = 'all', axis = 1) # drop empty columns
         df = df.convert_dtypes() # set best dtypes
         st.session_state["MASTER DATA"] = df
         
+        # show column descriptions
         master_df = st.session_state["MASTER DATA"]
         describe_df = describe_data(master_df)
         st.dataframe(describe_df, use_container_width = True)
         
+        # optionally, apply recursive filtering
         filter = st.checkbox("Apply Filters")
         filtered_df = recursive_filter(filter, master_df, [], n = 0)
         
@@ -164,18 +172,20 @@ if __name__ == "__main__":
             st.dataframe(sample_data(filtered_df))
             st.write(filtered_df.shape)
             if sample_data(filtered_df).shape[0] < filtered_df.shape[0]:
-                st.write("*Unable to show all rows*")
+                st.write("*Only showing a sample of {DISPLAY_MAX_N} rows*")
             st.session_state["FILTERED DATA"] = filtered_df
-        
-    st.write("")
+    
+    # upload artifacts widget
+    st.markdown("***")
     st.write("**Do you have the artifacts of an existing transformation pipeline?**\
-    Pipeline artifacts will allow you to apply a pre-defined series of transformations on the above dataset.")
+    Pipeline artifacts will allow you to apply a pre-defined series of transformations on your uploaded dataset.")
     uploaded_artifacts = st.file_uploader(
         "(Optional) Upload Pipeline Artifacts",
         type = 'json',
         help = "Only JSON files that were previously created on and downloaded from this platform will be accepted."
     )
     
+    # check valid artifacts, illustrate, and apply
     #if uploaded_artifacts:
         # check if artifacts are valid
         
