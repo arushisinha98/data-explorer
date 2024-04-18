@@ -161,7 +161,7 @@ def PlotStrip(df, x, group_by = None, width = 600, height = 400):
     
     try:
         df_filtered = df.dropna(subset=[x])
-        df_filtered["Y"] = 0
+        df_filtered.loc[:,"Y"] = 0
         type, axis = 'Q', alt.Axis()
         if dict(df.dtypes)[x] == "datetime64[ns]":
             type = 'T'

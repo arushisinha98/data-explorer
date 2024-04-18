@@ -35,13 +35,6 @@ class Pipeline():
         return self.metadata
     
     
-    def getData(self):
-        '''
-        Returns data as at latest state in transformation pipeline.
-        '''
-        return self.data
-    
-    
     def listFunctions(self, print = False):
         '''
         Lists all the transformation functions available in the class object.
@@ -122,15 +115,6 @@ class Pipeline():
             print("Failed to recode column names.")
             current_dateTime = str(datetime.now())[0:19]
             print(current_dateTime + ': ' + str(e))
-            
-            
-    def getColumnTypes(self):
-        '''
-        Outputs a dictionary specifying the data type of each column
-        Returns:
-        - type_dict: Dictionary specifying columns and their dtypes.
-        '''
-        return dict(self.data.dtypes)
     
     
     def RecodeColumnTypes(self, recode_dict):
