@@ -1,14 +1,16 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-#from streamlit.components.v1 import html
-#from streamlit_js_eval import streamlit_js_eval
 import random
+from Start import describe_data
 
 import sys
 sys.path.append('../src/')
 from PipelineClass import Pipeline, valid_dtypes
 
+# persist all widgets
+for k, v in st.session_state.items():
+    st.session_state[k] = v
 
 def recursive_transform(add_step, pipeline, n):
     
@@ -25,7 +27,6 @@ def recursive_transform(add_step, pipeline, n):
     if step_n:
         dtypes = dict(pipeline.data.dtypes)
         
-        # TODO: Input Params in st.popover for better visuals
         if step_n == "DropColumns":
             # multiselect columns to drop
             drop_cols = st.multiselect("↳ Select columns to drop",
@@ -34,53 +35,85 @@ def recursive_transform(add_step, pipeline, n):
             if drop_cols:
                 pipeline.DropColumns(drop_cols)
         
+        elif step_n == "DropRows":
+            # multiselect mandatory columns
+            mandatory_cols = st.multiselect("↳ Select mandatory columns",
+                                            pipeline.data.columns,
+                                            key = f"{n}-DropRows")
+            if mandatory_cols:
+                pipeline.DropRows(mandatory_cols)
+                
+        elif step_n == "RenameColumns":
+            # select column and fill rename dataframe
+            df = pd.DataFrame(data = pipeline.data.columns,
+                              columns = ["Original Name"])
+            df["New Name"] = pipeline.data.columns
+            recode_editor = st.data_editor(df,
+                                           column_config = {"New Name": st.column_config.TextColumn(required = True)},
+                                           key = f"{n}-RenameColumns")
+            apply = st.toggle("Apply", key = f"{n}-Rename")
+            if apply:
+                df = recode_editor.set_index("Original Name")
+                pipeline.RenameColumns(df["New Name"].to_dict())
+                
+        elif step_n == "RecodeColumnTypes":
+            # select column and dtype
+            display1, display2 = st.columns([1,1])
+            col = display1.selectbox("↳ Select column",
+                                     [col for col in pipeline.data.columns],
+                                     key = f"{n}-RecodeColumnTypes-Column")
+            # TODO: select from allowable list of recodes
+            dtype = display2.selectbox("↳ Select dtype",
+                                       valid_dtypes,
+                                       key = f"{n}-RecodeColumnTypes-dtype")
+            if col and dtype:
+                pipeline.RecodeColumnTypes({col: dtype})
         
-        elif step_n == "FilterColumnByStd":
+        elif step_n == "ReplaceByValue":
             # select column; multiselect group_by; select params
             display1, display2 = st.columns([1,1])
-            col = display1.selectbox("↳ Select column to filter",
-                                     [col for col in pipeline.data.columns if dtypes[col] == "Float64"],
-                                     key = f"{n}-FilterColumnByStd-Column")
+            col = display1.selectbox("↳ Select column to be affected",
+                                     [col for col in pipeline.data.columns if dtypes[col] == "Float64" or dtypes[col] == "Int64"],
+                                     key = f"{n}-ReplaceByValue-Column")
             group_by = display2.multiselect("↳ (Optional) Select column(s) to group by",
-                                [col for col in pipeline.data.columns if dtypes[col] != "Float64"],
-                                key = f"{n}-FilterColumnByStd-GroupBy")
-            n_std = st.slider("↳ Select `N` standard deviations",
-                              1, 5, 3,
-                              key = f"{n}-FilterColumnByStd-n")
+                                            [col for col in pipeline.data.columns if dtypes[col] != "Float64" and dtypes[col] != "datetime64[ns]"],
+                                            key = f"{n}-ReplaceByValue-GroupBy")
+            display3, display4 = st.columns([1,5])
+            direction = display3.selectbox("↳ Specify criteria",
+                                           [">","<",">=","<=","==","!="],
+                                           key = f"{n}-ReplaceByValue-direction")
+            bound = display4.text_input("(i.e. values to replace)",
+                                        key = f"{n}-ReplaceByValue-bound")
             fill = st.text_input("↳ Input fill value for filtered cells",
                                  placeholder = "Can be a numeric value, or 'mean', 'median', or 'NA'",
-                                 key = f"{n}-FilterColumnByStd-Fill")
+                                 key = f"{n}-ReplaceByValue-Fill")
+            
+            min_b, max_b = min(pipeline.data[col].dropna()), max(pipeline.data[col].dropna())
+            if col and direction and bound:
+                bound = float(bound)
+                if bound > max_b or bound < min_b:
+                    st.write("Criteria defies the minimum/maximum values of the column.")
+                else:
+                    pipeline.ReplaceByValue(col, bound, direction, group_by, fill)
+        
+        elif step_n == "ReplaceByStd":
+            # select column; multiselect group_by; select params
+            display1, display2 = st.columns([1,1])
+            col = display1.selectbox("↳ Select column to be affected",
+                                     [col for col in pipeline.data.columns if dtypes[col] == "Float64"],
+                                     key = f"{n}-ReplaceByStd-Column")
+            group_by = display2.multiselect("↳ (Optional) Select column(s) to group by",
+                                [col for col in pipeline.data.columns if dtypes[col] != "Float64"],
+                                key = f"{n}-ReplaceByStd-GroupBy")
+            n_std = st.slider("↳ Select `N` standard deviations",
+                              1, 5, 3,
+                              key = f"{n}-ReplaceByStd-n")
+            fill = st.text_input("↳ Input fill value for filtered cells",
+                                 placeholder = "Can be a numeric value, or 'mean', 'median', or 'NA'",
+                                 key = f"{n}-ReplaceByStd-Fill")
             
             if col and n_std and fill:
                 pipeline.FilterColumnByStd(col, group_by, n_std, fill)
-        
-        
-        elif step_n == "FilterColumnByValue":
-            # select column; multiselect group_by; select params
-            display1, display2 = st.columns([1,1])
-            col = display1.selectbox("↳ Select column to filter",
-                                     [col for col in pipeline.data.columns if dtypes[col] == "Float64" or dtypes[col] == "Int64" or dtypes[col] == "boolean"],
-                                     key = f"{n}-FilterColumnByValue-Column")
-            group_by = display2.multiselect("↳ (Optional) Select column(s) to group by",
-                                            [col for col in pipeline.data.columns if dtypes[col] != "Float64"],
-                                            key = f"{n}-FilterColumnByValue-GroupBy")
-            display3, display4 = st.columns([1,5])
-            direction = display3.selectbox("↳ Specify filter",
-                                           [">","<",">=","<="],
-                                           key = f"{n}-FilterColumnByValue-direction")
-            bound = display4.text_input("(i.e. values to exclude)",
-                                        key = f"{n}-FilterColumnByValue-bound")
-            fill = st.text_input("↳ Input fill value for filtered cells",
-                                 placeholder = "Can be a numeric value, or 'mean', 'median', or 'NA'",
-                                 key = f"{n}-FilterColumnByValue-Fill")
-            
-            min_b, max_b = min(pipeline.data[col]), max(pipeline.data[col])
-            if col and direction and bound and fill:
-                bound = float(bound)
-                if bound > max_b or bound < min_b:
-                    st.write("Filter value is beyond the minimum/maximum bounds of the column.")
-                else:
-                    pipeline.FilterColumnByValue(col, bound, direction, group_by, fill)
         
         
         elif step_n == "ImputeWithKNN":
@@ -89,7 +122,7 @@ def recursive_transform(add_step, pipeline, n):
                                [col for col in pipeline.data.columns if dtypes[col] == "Float64" and pipeline.data[col].isnull().values.any()],
                                key = f"{n}-ImputeWithKNN-Column")
             # TODO: suggest best N?
-            knn = st.slider("↳ Select `N` neighboring samples",
+            knn = st.slider("↳ Select `N` neighboring samples whose mean value to impute with",
                             2, 20, 5,
                             key = f"{n}-ImputeWithKNN-knn")
             
@@ -124,20 +157,6 @@ def recursive_transform(add_step, pipeline, n):
                             eqn_str += f" + {beta} x [{X}]"
                 st.write(f"**{eqn_str}**")
                 pipeline.ImputeWithRegression(col, Xs, coeffs)
-                
-        
-        elif step_n == "RecodeColumnTypes":
-            # select column and dtype
-            display1, display2 = st.columns([1,1])
-            col = display1.selectbox("↳ Select column",
-                                     [col for col in pipeline.data.columns],
-                                     key = f"{n}-RecodeColumnTypes-Column")
-            # TODO: select from allowable list of recodes
-            dtype = display2.selectbox("↳ Select dtype",
-                                       valid_dtypes,
-                                       key = f"{n}-RecodeColumnTypes-dtype")
-            if col and dtype:
-                pipeline.RecodeColumnTypes({col: dtype})
         
         
         elif step_n == "RecodeColumnValues":
@@ -156,10 +175,8 @@ def recursive_transform(add_step, pipeline, n):
                 df = recode_editor.set_index("Original Value")
                 pipeline.RecodeColumnValues(col, df["New Value"].to_dict())
         
-        #elif step_n == "RenameColumns":
-            # select column and type name (fill dataframe?)
-        #elif step_n == "SumColumnValues":
-        
+        else:
+            st.write("[Work in Progress] This transformation is available in `src/PipelineClass.py` but still requires a frontend configuration to work on this Streamlit app. Please edit `app/pages/2_Transform.py` accordingly.")
         
         add_step = st.checkbox("Add Another Transformation",
                                key = f"add_step_{n}")
@@ -186,18 +203,20 @@ if __name__ == "__main__":
     else:
         transform_df = st.session_state["FILTERED DATA"]
     
-    st.write(f"Shape of selected data: {transform_df.shape[0]} rows, {transform_df.shape[1]} columns")
+    st.write(f"Shape of selected data: `{transform_df.shape}`")
     
     pipeline = Pipeline(input_df = transform_df)
     
     with st.expander("View Data"):
+        st.dataframe(describe_data(transform_df))
         st.dataframe(transform_df)
+        
     
     if transform_df.shape[0] > 0:
         transform = st.checkbox("Apply Transformation")
         steps = recursive_transform(transform, pipeline, n = 0)
         
-        export = st.button("Export Pipeline")
+        export = st.button("Export Pipeline", disabled = not transform)
         if export:
             transform_df = pipeline.data
             st.write("Metadata:")

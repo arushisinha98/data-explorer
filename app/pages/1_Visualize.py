@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
-# import plotly.figure_factory as ff
+
 
 import sys
 sys.path.append('../src/')
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         if x_axis:
             # select y-axis
             y_axis = st.selectbox(label = "Select y-axis",
-                                  options = [col for col in visualize_df.columns if col not in x_axis and dtypes[col] != "string" and dtypes[col] != "boolean"],
+                                  options = [col for col in visualize_df.columns if col not in x_axis and dtypes[col] != "string" and dtypes[col] != "boolean" and dtypes[col] != "datetime64[ns]"],
                                   index = None,
                                   key = "2D_y_axis")
             if y_axis:

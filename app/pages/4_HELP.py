@@ -1,12 +1,18 @@
 import streamlit as st
 import streamlit_mermaid as mermaid
+import pandas as pd
+
+import sys
+sys.path.append('../src/')
+from PipelineClass import Pipeline
 
 
 class_diagram = """
     classDiagram
-        class _{
+        class START{
             DropColumns
             DropRows
+            RenameColumns
             RecodeColumnTypes
         }
         class Outliers{
@@ -43,10 +49,11 @@ class_diagram = """
             
             addIndicator()
         }
-        class Recode{
+        class Encode{
         <<categorical>>
             OneHotEncode
             LabelEncode
+            BinaryEncode
         }
         class Bin{
         <<numerical>>
@@ -62,21 +69,26 @@ class_diagram = """
             ExtractMonth
             ExtractWeek
             CheckIfWeekend
+            ComputeTimeDelta
+        }
+        class Text{
+        <<string>>
+            CleanText
+            TokenizeText
+            VectorizeText
         }
         direction TD
-        _ --> Date
-        _ --> Recode
-        _ --> Outliers
-        Outliers --> Scale : 1
-        Outliers --> Impute : 2
-        Recode --> Impute
+        START --> Date
+        START --> Encode
+        START --> Outliers
+        START --> Text
+        Outliers --> Scale : <b><u>Scale</b> <i>before</i> <b>Imputing</u></b><br>if imputation method<br>is sensitive to scale of<br>features and/or outliers
+        Outliers --> Impute : <b><u>Impute</b> <i>before</i> <b>Scaling</u></b><br>if scaling needs to be<br>applied to all values,<br>including imputed ones
+        Encode --> Impute
         Scale --> Bin
         Impute --> Bin
     """
 
-mermaid.st_mermaid(class_diagram, height = "1000px")
+mermaid.st_mermaid(class_diagram, height = "900px")
 
-st.write("(1) **Scale** before **Impute**\n\
-            if imputation method is sensitive to scale of features and/or outliers")
-st.write("(2) **Impute** before **Scale**\n\
-            if scaling needs to be applied to all values, including imputed ones")
+st.write(Pipeline)
