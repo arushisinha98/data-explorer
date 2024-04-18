@@ -1,3 +1,6 @@
+# main data file
+data/Test/unwinded_merged_OVS_2016-19.csv
+
 # Byte-compiled / optimized / DLL files
 **/__pycache__/
 *.py[co]
