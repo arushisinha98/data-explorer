@@ -2,14 +2,15 @@ import streamlit as st
 import datetime as datetime
 import pandas as pd
 import numpy as np
+import json
 import os
 
 import sys
 sys.path.append('../src/')
-from visualizations import PlotStrip, PlotDensity
+from visualizations import PlotStrip, PlotDensity, PlotBox
+from PipelineClass import Pipeline, valid_dtypes
 
-
-DISPLAY_MAX_N = 50000
+DISPLAY_MAX_N = 5000
 EXAMPLE_CATEGORIES = 3
 
 file_formats = {'csv': pd.read_csv,
@@ -41,17 +42,19 @@ def describe_data(master_df):
         row.append(dtypes[col])
         row.append(np.round(master_df[col].isnull().mean()*100,2))
         
-        if dtypes[col] == "string[python]" or dtypes[col] == "string":
+        if dtypes[col] == "string":
             values = list(set(master_df[col].dropna()))
             show_values = ', '.join(values[:EXAMPLE_CATEGORIES])
             show_ellipse = [', ...' if len(values) > EXAMPLE_CATEGORIES else '']
             row.append(f"[{show_values}{show_ellipse[0]}], {len(values)} unique values")
             
         elif dtypes[col] == "boolean":
-            row.append("TRUE (1) or FALSE (0)")
+            row.append("True (1), False (0)")
             
+        elif dtypes[col] == "datetime64[ns]":
+            row.append(f"{pd.to_datetime(master_df[col].dropna().min().round('s'))} to {pd.to_datetime(master_df[col].dropna().max().round('s'))}")
         else:
-            row.append(f"{min(master_df[col].dropna())} to {np.nanmax(master_df[col].dropna())}")
+            row.append(f"{round(master_df[col].dropna().min(), 4)} to {round(master_df[col].dropna().max(), 4)}")
             
         data.append(row)
             
@@ -74,7 +77,7 @@ def recursive_filter(add_filter, df, previous_cols, n):
     
     if not add_filter or df.empty or df.shape[0] == 0:
         return df
-        
+    
     n += 1
     dtypes = dict(df.dtypes)
     col_type = st.radio(label = "Select type of column to be filtered",
@@ -89,10 +92,11 @@ def recursive_filter(add_filter, df, previous_cols, n):
                                      key = f"filter_column_{n}")
         
         if filter_column:
-            previous_cols += filter_column
+            previous_cols += [filter_column]
+            print(previous_cols)
             
-            if col_type == "string[python]" or col_type == "string" or col_type == "boolean":
-                
+            if col_type == "string" or col_type == "boolean":
+                # inludes <NA> in selections
                 filter_value = st.multiselect("↳ Select categories", list(set(df[filter_column])),
                                               key = f"filter_value_{n}")
                 filtered_df = df.loc[df[filter_column].isin(filter_value)].reset_index(drop = True)
@@ -100,33 +104,42 @@ def recursive_filter(add_filter, df, previous_cols, n):
             else:
                 min_value, max_value = min(df[filter_column].dropna()), max(df[filter_column].dropna())
                 
-                if col_type == "Int64" or col_type == "Int32":
+                if col_type == "Int64":
+                    chart = PlotBox(df, filter_column, width = 600, height = 60)
+                    st.altair_chart(chart, use_container_width = True)
+                    
                     filter_value = st.slider("↳ Select range of values",
                                              int(min_value), int(max_value),
                                              value = (int(min_value), int(max_value)),
                                              key = f"filter_value_{n}")
+                    # toggle option to include <NA>
+                    include_na = st.toggle("Include missing?", key = f"inlcude_na_{n}")
                                              
                 elif col_type == "datetime64[ns]":
-                    chart = PlotStrip(df, filter_column, group_by = None, width = 600, height = 60)
-                    st.altair_chart(chart, use_container_width = True)
-                    
                     df[filter_column] = pd.to_datetime(df[filter_column])
                     min_value, max_value = min(df[filter_column].dropna()).to_pydatetime(), max(df[filter_column].dropna()).to_pydatetime()
                     filter_value = st.slider("↳ Select range of values",
                                              min_value, max_value,
                                              format = "YYYY-MM-DD hh:mm",
-                                             value = (min_value, max_value))
+                                             value = (min_value, max_value),
+                                             key = f"filter_value_{n}")
+                    # toggle option to include <NA>
+                    include_na = st.toggle("Include missing?", key = f"inlcude_na_{n}")
                 
                 else:
-                    chart = PlotStrip(df, filter_column, group_by = None, width = 600, height = 60)
+                    chart = PlotBox(df, filter_column, width = 600, height = 60)
                     st.altair_chart(chart, use_container_width = True)
-                    
                     filter_value = st.slider("↳ Select range of values",
                                              np.floor(min_value), np.ceil(max_value),
-                                             value = (min_value, max_value))
+                                             value = (min_value, max_value),
+                                             key = f"filter_value_{n}")
+                    # toggle option to include <NA>
+                    include_na = st.toggle("Include missing?", key = f"inlcude_na_{n}")
                 
-                filtered_df = df.loc[(df[filter_column] >= filter_value[0]) &
-                                     (df[filter_column] <= filter_value[1])].reset_index(drop = True)
+                filtered_df = df[(df[filter_column].between(filter_value[0], filter_value[1], inclusive = 'both'))]
+                
+                if include_na:
+                    filtered_df = df[(df[filter_column].between(filter_value[0], filter_value[1], inclusive = 'both')) | df[filter_column].isna()]
             
             add_filter = st.checkbox("Add Another Filter",
                                      key = f"add_filter_{n}")
@@ -134,7 +147,24 @@ def recursive_filter(add_filter, df, previous_cols, n):
             return recursive_filter(add_filter, filtered_df, previous_cols, n)
     
     
+def check_artifacts(json_data):
+    # check that the artifacts have steps 1, 2, ... N
+    keys = list(json_data.keys())
+    steps = list(np.array(keys, dtype = int))
+    if steps != list(np.array(range(1,len(steps)+1))):
+        return False
     
+    pipeline = Pipeline(pd.DataFrame())
+    # check that the transformations are valid functions
+    for key in keys:
+        for function, params in json_data[key].items():
+            if function not in pipeline.listFunctions:
+                return False
+    
+    # check that each transformation has valid params
+    return True
+    
+
 if __name__ == "__main__":
 
     st.set_page_config(
@@ -155,8 +185,10 @@ if __name__ == "__main__":
     # upload data widget
     if uploaded_file:
         df = load_data(uploaded_file)
-        df = df.dropna(how = 'all', axis = 1) # drop empty columns
-        df = df.convert_dtypes() # set best dtypes
+        # initialize pipeline object
+        pipeline = Pipeline(input_df = df)
+        df = pipeline.data # address edge-case dtype conversions
+        
         st.session_state["MASTER DATA"] = df
         
         # show column descriptions
@@ -174,6 +206,7 @@ if __name__ == "__main__":
             if sample_data(filtered_df).shape[0] < filtered_df.shape[0]:
                 st.write("*Only showing a sample of {DISPLAY_MAX_N} rows*")
             st.session_state["FILTERED DATA"] = filtered_df
+            
     
     # upload artifacts widget
     st.markdown("***")
@@ -186,10 +219,12 @@ if __name__ == "__main__":
     )
     
     # check valid artifacts, illustrate, and apply
-    #if uploaded_artifacts:
-        # check if artifacts are valid
-        
-        # create mermaid diagram of pipeline
-        
-        # apply or confirm button
+    if uploaded_artifacts:
+        artifacts = json.loads(uploaded_artifacts.read())
+        if check_artifacts:
+            st.write(artifacts)
+            # apply or confirm button
+            
+            if uploaded_file:
+                st.button("Apply")
     

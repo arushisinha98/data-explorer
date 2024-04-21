@@ -5,25 +5,32 @@ from pandas.api.types import CategoricalDtype
 from sklearn.impute import KNNImputer
 
 
-valid_dtypes = ['char','string','int','float','bool','categorical','datetime']
+valid_dtypes = ['char','string','int','float','boolean','categorical','datetime']
 
 
 class Pipeline():
     '''
     The Pipeline object contains member functions that perform transformations on a data set. These functions can be sequentially called to create a pre-processing pipeline. The relevant metadata and artifacts required to reproduce the pipeline are also stored within the Pipeline object.
     '''
-    def __init__(self, input_df, description = ""):
+    def __init__(self, input_df):
         assert isinstance(input_df, pd.DataFrame)
         
         try:
+            input_df = input_df.dropna(how = 'all', axis = 1)
             input_df = input_df.convert_dtypes() # set best dtype for columns
+            
+            # convert Int64 to boolean if values in {0, 1, NA}
+            dtypes = dict(input_df.dtypes)
+            for col, dtype in dtypes.items():
+                if dtype == 'Int64' and input_df[col].isin([0, 1, pd.NA]).all():
+                    input_df[col] = input_df[col].astype('boolean')
+            
             input_df = input_df.reset_index(drop = True) # set one index = one row
             
             self.data = input_df
-            self.metadata = description + "\n"
+            self.metadata = ""
             self.n_steps = 0
             self.artifacts = dict()
-            self.functions = listFunctions(print = False)
             
         except Exception as e:
             print("Failed to create Pipeline object.")
@@ -122,7 +129,7 @@ class Pipeline():
         FUNCTION to recode the data type of columns of a pandas dataframe
         Parameters:
         - recode_dict: Dictionary specifying the columns and their target dtypes. 
-                       The dtypes can be 'char', 'string', 'int', 'float', 'bool',
+                       The dtypes can be 'char', 'string', 'int', 'float', 'boolean',
                        'categorical', 'date', or 'datetime'.
         '''
         assert isinstance(recode_dict, dict)
@@ -133,7 +140,7 @@ class Pipeline():
         try:
             df = self.data
             for column, dtype in recode_dict.items():
-                # keeps NaN intact except in conversion to bool, which replaces missing cells with False if there is no natural distinction between True and False that can be found in original values
+                # keeps NaN intact except in conversion to boolean, which replaces missing cells with False if there is no natural distinction between True and False that can be found in original values
                 if dtype == 'char':
                     df[column] = np.where(pd.isna(df[column]),
                                           df[column],
@@ -149,10 +156,10 @@ class Pipeline():
                 elif dtype == 'float':
                     df[column] = np.where(pd.isna(df[column]),
                                           df[column],
-                                          df[column].astype(float))
-                elif dtype == 'bool':
+                                          pd.to_numeric(df[column], downcast = 'float', errors = 'coerce'))
+                elif dtype == 'boolean':
                     try:
-                        df[column] = df[column].astype('boolean')
+                        df[column] = np.where(pd.isna(df[column]),False,True)
                     finally:
                         continue
                 elif dtype == 'categorical':
