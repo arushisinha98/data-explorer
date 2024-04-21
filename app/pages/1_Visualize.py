@@ -9,13 +9,6 @@ sys.path.append('../src/')
 from visualizations import *
 
 
-def unique_groups(df, group_by):
-    permutations = 1
-    for col in group_by:
-        permutations *= len(set(df[col]))
-    return permutations
-
-
 if __name__ == "__main__":
 
     st.set_page_config(
@@ -44,9 +37,9 @@ if __name__ == "__main__":
     dtypes = dict(visualize_df.dtypes)
     
     with OneD:
-        # select x-axis
+        # select x-axis (non-datetime only)
         x_axis = st.selectbox(label = "Select x-axis",
-                              options = list(visualize_df.columns),
+                              options = visualize_df.columns,
                               index = None,
                               key = "1D_x_axis")
         group_by = False
@@ -62,7 +55,7 @@ if __name__ == "__main__":
                 chart = PlotBar(visualize_df, x_axis, group_by)
                 st.altair_chart(chart, use_container_width = True)
             
-            # plot density o/w (i.e. x-axis is float/int/datetime)
+            # plot density o/w (i.e. x-axis is float/int)
             else:
                 chart = PlotDensity(visualize_df, x_axis, group_by)
                 st.altair_chart(chart, use_container_width = True)
@@ -70,19 +63,11 @@ if __name__ == "__main__":
     with TwoD:
         # select x-axis
         x_axis = st.selectbox(label = "Select x-axis",
-                              options = [col for col in visualize_df.columns],
+                              options = visualize_df.columns,
                               index = None,
                               key = "2D_x_axis")
         group_by = False
         if x_axis:
-            # if x-axis is categorical and y-axis is numeric, create vertical boxplots
-            
-            # if x-axis is categorical and y-axis is categorical, create heatmap
-            
-            # if x-axis is numeric and y-axis is categorical, create horizontal boxplots
-            
-            # if x-axis is numeric and y-axis is numeric, create scatter plot with coalescing bubbles (option to group by)
-            
             # select y-axis
             y_axis = st.selectbox(label = "Select y-axis",
                                   options = [col for col in visualize_df.columns if col not in x_axis and dtypes[col] != "datetime64[ns]"],
@@ -93,6 +78,42 @@ if __name__ == "__main__":
                 group_by = st.multiselect("Select Column(s) to Group By",
                                           options = [col for col in visualize_df.columns if col not in x_axis and col not in y_axis and dtypes[col] == "string" or dtypes[col] == "boolean"],
                                           key = "2D_group")
-                chart = PlotScatter(visualize_df, x_axis, y_axis, group_by)
+                
+                # if x-axis is datetime
+                if dtypes[x_axis] == "datetime64[ns]":
+                    # if y-axis is numeric, create time series
+                    if dtypes[y_axis] != "boolean" and dtypes[y_axis] != "string":
+                        chart = PlotTimeseries(visualize_df, x_axis, y_axis, group_by)
+                    else: # if y-axis is categorical, create bubble chart
+                        chart = PlotStrip(visualize_df, x_axis, y_axis, group_by)
+                
+                # if x-axis is categorical
+                elif dtypes[x_axis] == "boolean" or dtypes[x_axis] == "string":
+                    # if y-axis is numeric, create vertical boxplots
+                    if dtypes[y_axis] != "boolean" and dtypes[y_axis] != "string":
+                        #chart =
+                        print('continue')
+                    else: # if y-axis is categorical, create heatmap
+                        #chart =
+                        x, y, df = x_axis, y_axis, visualize_df
+                        df_filtered = df.copy()
+                        df_filtered = df_filtered.dropna(subset=[x,y])
+                        df_filtered['Group'] = df_filtered[group_by].astype(str).agg(', '.join, axis=1)
+                        chart = alt.Chart(df_filtered).mark_rect().encode(
+                            alt.X(f'{x}:N'),
+                            alt.Y(f'{y}:N'),
+                            alt.Color('count():Q', scale=alt.Scale(scheme="lightgreyred"))
+                        )
+                
+                # if x-axis is numeric
+                else:
+                    # if y-axis is numeric, create scatter plot with coalescing bubbles
+                    if dtypes[y_axis] != "boolean" and dtypes[y_axis] != "string":
+                        bin = st.toggle("Bin axes")
+                        chart = PlotScatter(visualize_df, x_axis, y_axis, bin, group_by)
+                    else: # if y-axis is categorical, create horizontal boxplots
+                        #chart =
+                        print('continue')
+                
                 st.altair_chart(chart, use_container_width = True)
                 
