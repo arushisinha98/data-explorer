@@ -93,7 +93,6 @@ def recursive_filter(add_filter, df, previous_cols, n):
         
         if filter_column:
             previous_cols += [filter_column]
-            print(previous_cols)
             
             if col_type == "string" or col_type == "boolean":
                 # inludes <NA> in selections
