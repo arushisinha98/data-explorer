@@ -84,8 +84,10 @@ if __name__ == "__main__":
                     # if y-axis is numeric, create time series
                     if dtypes[y_axis] != "boolean" and dtypes[y_axis] != "string":
                         chart = PlotTimeseries(visualize_df, x_axis, y_axis, group_by)
+                        st.altair_chart(chart, use_container_width = True)
                     else: # if y-axis is categorical, create bubble chart
                         chart = PlotStrip(visualize_df, x_axis, y_axis, group_by)
+                        st.altair_chart(chart, use_container_width = True)
                 
                 # if x-axis is categorical
                 elif dtypes[x_axis] == "boolean" or dtypes[x_axis] == "string":
@@ -104,6 +106,7 @@ if __name__ == "__main__":
                             alt.Y(f'{y}:N'),
                             alt.Color('count():Q', scale=alt.Scale(scheme="lightgreyred"))
                         )
+                        st.altair_chart(chart, use_container_width = True)
                 
                 # if x-axis is numeric
                 else:
@@ -111,9 +114,8 @@ if __name__ == "__main__":
                     if dtypes[y_axis] != "boolean" and dtypes[y_axis] != "string":
                         bin = st.toggle("Bin axes")
                         chart = PlotScatter(visualize_df, x_axis, y_axis, bin, group_by)
+                        st.altair_chart(chart, use_container_width = True)
                     else: # if y-axis is categorical, create horizontal boxplots
                         #chart =
                         print('continue')
-                
-                st.altair_chart(chart, use_container_width = True)
                 
