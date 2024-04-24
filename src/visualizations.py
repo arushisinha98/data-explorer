@@ -151,7 +151,7 @@ def PlotScatter(df, x, y, bin = False, group_by = None, width = 600, height = 40
         print(current_dateTime + ': ' + str(e))
         
         
-def PlotTimeseries(df, x, y, group_by = None, width = 600, height = 400)
+def PlotTimeseries(df, x, y, group_by = None, width = 600, height = 400):
     '''
     FUNCTION to create a 2D timeseries plot using Altair, for display on Streamlit.
     Parameters:
@@ -172,22 +172,23 @@ def PlotTimeseries(df, x, y, group_by = None, width = 600, height = 400)
     try:
         df_filtered = df.copy()
         df_filtered = df_filtered.dropna(subset = [x,y])
+        df_filtered[x] = pd.to_datetime(df_filtered[x])
         
         if group_by: # new 'Group' column for unique combinations
             df_filtered['Group'] = df_filtered[group_by].astype(str).agg(', '.join, axis = 1)
             
             chart = alt.Chart(df_filtered).mark_line(point = True).encode(
-                    x = alt.X(f'{x}:T', scale = alt.Scale(zero = False), title = x_axis),
-                    y = alt.Y(f'{y}:Q', scale = alt.Scale(zero = False), title = y_axis),
+                    x = alt.X(f'{x}:T', scale = alt.Scale(zero = False), title = x),
+                    y = alt.Y(f'{y}:Q', scale = alt.Scale(zero = False), title = y),
                     order = f'{x}',
                     color = alt.Color('Group:N', legend = alt.Legend(title = ', '.join(group_by))),
                     tooltip = [alt.Tooltip(f'{x}:{type}'), alt.Tooltip(f'{y}:Q'), 'Group:N']
-                    )
+            )
         
         else:
             chart = alt.Chart(df_filtered).mark_line(point = True).encode(
-                x = alt.X(f'{x}:T', scale = alt.Scale(zero = False), title = x_axis),
-                y = alt.Y(f'{y}:Q', scale = alt.Scale(zero = False), title = y_axis),
+                x = alt.X(f'{x}:T', scale = alt.Scale(zero = False), title = x),
+                y = alt.Y(f'{y}:Q', scale = alt.Scale(zero = False), title = y),
                 order = f'{x}',
                 tooltip = [alt.Tooltip(f'{x}:{type}'), alt.Tooltip(f'{y}:Q')]
             )
@@ -223,6 +224,7 @@ def PlotStrip(df, x, y, group_by = None, width = 600, height = 60):
         df_filtered = df.copy()
         df_filtered = df_filtered.dropna(subset = [x,y])
         df_filtered.loc[:,"Y"] = df_filtered[y].astype('category').cat.codes+0.5
+        df_filtered[x] = pd.to_datetime(df_filtered[x])
         
         if group_by: # new 'Group' column for unique combinations
             df_filtered['Group'] = df_filtered[group_by].astype(str).agg(', '.join, axis = 1)
@@ -231,7 +233,7 @@ def PlotStrip(df, x, y, group_by = None, width = 600, height = 60):
                 x = alt.X(f'{x}:T'),
                 y = alt.Y('Y:Q', title = "", axis = None),
                 color = alt.Color(f'Group:N'),
-                tooltip = [alt.Tooltip(f'{x}:T'), alt.Tooltip(f'{y}:N'), 'Group:N']
+                tooltip = [alt.Tooltip(f'{x}:T'), alt.Tooltip(f'{y}:Q'), 'Group:N']
                 ).configure_tick(
                     thickness = 100/len(set(df[y])),
                     bandSize = 1
@@ -239,9 +241,9 @@ def PlotStrip(df, x, y, group_by = None, width = 600, height = 60):
                 
         else:
             chart = alt.Chart(df_filtered).mark_tick().encode(
-                x = alt.X(f'{x}:Q'),
+                x = alt.X(f'{x}:T'),
                 y = alt.Y('Y:Q', title = "", axis = None),
-                tooltip = [alt.Tooltip(f'{x}:Q'), alt.Tooltip(f'{y}:N')]
+                tooltip = [alt.Tooltip(f'{x}:T'), alt.Tooltip(f'{y}:Q')]
                 ).configure_tick(
                     thickness = 100/len(set(df[y])),
                     bandSize = 1
