@@ -24,18 +24,7 @@ class Pipeline():
             for col, dtype in dtypes.items():
                 if dtype == 'Int64' and input_df[col].isin([0, 1, pd.NA]).all():
                     input_df[col] = input_df[col].astype('boolean')
-            
-            # convert string to datetime64[ns] if date/time object
-            def is_datetime_column(series):
-                try:
-                    pd.to_datetime(series.dropna(), errors = 'raise')
-                    return True
-                except (ValueError, TypeError):
-                    return False
-            for column in input_df.columns:
-                if is_datetime_column(input_df[column]):
-                    input_df[column] = pd.to_datetime(input_df[column], errors = 'coerce')
-            
+
             input_df = input_df.reset_index(drop = True) # set one index = one row
             
             self.data = input_df
@@ -115,7 +104,7 @@ class Pipeline():
 
     def RenameColumns(self, recode_dict):
         '''
-        FUNCTION to recode the names of columns of a pandas dataframe
+        FUNCTION to rename the columns of a pandas dataframe
         Parameters:
         - recode_dict: Dictionary specifying the columns and their target names.
         '''
@@ -151,7 +140,7 @@ class Pipeline():
         try:
             df = self.data
             for column, dtype in recode_dict.items():
-                # keeps NaN intact except in conversion to boolean, which replaces missing cells with False if there is no natural distinction between True and False that can be found in original values
+                # keeps NaN in place except in conversion to boolean, which replaces missing cells with False if there is no natural distinction between True and False that can be found in original values
                 if dtype == 'char':
                     df[column] = np.where(pd.isna(df[column]),
                                           df[column],

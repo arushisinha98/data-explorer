@@ -200,7 +200,7 @@ if __name__ == "__main__":
         filtered_df = recursive_filter(filter, master_df, [], n = 0)
         
         # show and save filtered data
-        if filtered_df is not None:
+        if filter and filtered_df is not None:
             with st.expander("Show Filtered Data"):
                 st.dataframe(sample_data(filtered_df))
                 st.write(filtered_df.shape)

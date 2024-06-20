@@ -45,13 +45,12 @@ def recursive_transform(add_step, pipeline, n):
                               columns = ["Original Name"])
             df["New Name"] = pipeline.data.columns
             recode_editor = st.data_editor(df,
-                                           column_config = {"New Name": st.column_config.TextColumn(required = True)},
+                                           column_config = {"New Name": st.column_config.TextColumn(required = True),
+                                                            "Original Name": st.column_config.TextColumn(disabled = True)},
                                            key = f"{n}-RenameColumns")
-            apply = st.toggle("Apply", key = f"{n}-Rename")
-            if apply:
-                df = recode_editor.set_index("Original Name")
-                pipeline.RenameColumns(df["New Name"].to_dict())
-                valid_user_input = True
+            df = recode_editor.set_index("Original Name")
+            pipeline.RenameColumns(df["New Name"].to_dict())
+            valid_user_input = True
                 
         elif step_n == "RecodeColumnTypes":
             # select column and dtype
