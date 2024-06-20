@@ -5,7 +5,7 @@ from datetime import datetime
 import json
 
 import sys
-sys.path.append('../src/')
+sys.path.append('src/')
 from PipelineClass import Pipeline, valid_dtypes
 from transformations import recursive_transform
 

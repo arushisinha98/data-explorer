@@ -5,7 +5,7 @@ import os
 from Start import describe_data
 
 import sys
-sys.path.append('../src/')
+sys.path.append('src/')
 from visualizations import *
 
 

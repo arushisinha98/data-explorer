@@ -25,6 +25,17 @@ class Pipeline():
                 if dtype == 'Int64' and input_df[col].isin([0, 1, pd.NA]).all():
                     input_df[col] = input_df[col].astype('boolean')
             
+            # convert string to datetime64[ns] if date/time object
+            def is_datetime_column(series):
+                try:
+                    pd.to_datetime(series.dropna(), errors = 'raise')
+                    return True
+                except (ValueError, TypeError):
+                    return False
+            for column in input_df.columns:
+                if is_datetime_column(input_df[column]):
+                    input_df[column] = pd.to_datetime(input_df[column], errors = 'coerce')
+            
             input_df = input_df.reset_index(drop = True) # set one index = one row
             
             self.data = input_df

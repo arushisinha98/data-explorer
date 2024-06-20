@@ -6,7 +6,7 @@ import json
 import os
 
 import sys
-sys.path.append('../src/')
+sys.path.append('src/')
 from visualizations import PlotStrip, PlotDensity, PlotBox
 from PipelineClass import Pipeline, valid_dtypes
 
@@ -184,11 +184,11 @@ if __name__ == "__main__":
     # upload data widget
     if uploaded_file:
         df = load_data(uploaded_file)
+        
         # initialize pipeline object
         pipeline = Pipeline(input_df = df)
-        df = pipeline.data # address edge-case dtype conversions
-        
-        st.session_state["MASTER DATA"] = df
+        df = pipeline.data
+        st.session_state["MASTER DATA"] = df # update session state
         
         # show column descriptions
         master_df = st.session_state["MASTER DATA"]
@@ -199,12 +199,21 @@ if __name__ == "__main__":
         filter = st.checkbox("Apply Filters")
         filtered_df = recursive_filter(filter, master_df, [], n = 0)
         
+        # show and save filtered data
         if filtered_df is not None:
-            st.dataframe(sample_data(filtered_df))
-            st.write(filtered_df.shape)
-            if sample_data(filtered_df).shape[0] < filtered_df.shape[0]:
-                st.write("*Only showing a sample of {DISPLAY_MAX_N} rows*")
-            st.session_state["FILTERED DATA"] = filtered_df
+            with st.expander("Show Filtered Data"):
+                st.dataframe(sample_data(filtered_df))
+                st.write(filtered_df.shape)
+                if sample_data(filtered_df).shape[0] < filtered_df.shape[0]:
+                    st.write("*Only showing a sample of {DISPLAY_MAX_N} rows*")
+            st.session_state["FILTERED DATA"] = filtered_df # update session state
+            
+            save = st.button("Save Filtered Data")
+            if save:
+                ext = datetime.datetime.now().strftime("%Y-%m-%d")
+                filestr = uploaded_file.name.split('.')[0]
+                st.write(f"Filepath of filtered data: *data/{ext}-{filestr}-filtered.csv*")
+                filtered_df.to_csv(f'data/{ext} {filestr}.csv')
             
     
     # upload artifacts widget
